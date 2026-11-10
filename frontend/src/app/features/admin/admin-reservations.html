@@ -1,0 +1,31 @@
+<div class="staff-heading"><div><p class="eyebrow">Booking ledger</p><h1>Reservations</h1><p>Search guest stays and manage reservation status.</p></div></div>
+<form class="staff-panel staff-filters" [formGroup]="filter" (ngSubmit)="search()">
+  <label>Search<input formControlName="q" placeholder="Guest, room, or reservation ID" /></label>
+  <label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+  <label>Stay date<input type="date" formControlName="date" /></label>
+  <button class="button">Search</button><button class="plain-button" type="button" (click)="clear()">Reset</button>
+</form>
+@if (action.feedback()) { <p class="notice success" role="status">{{ action.feedback() }}</p> }
+@if (action.error()) { <p class="notice error" role="alert">{{ action.error() }}</p> }
+@if (detail.loading()) { <p class="notice" role="status">Loading reservation details…</p> }
+@if (detail.error()) { <p class="notice error" role="alert">{{ detail.error() }}</p> }
+@if (detail.data(); as row) {
+  <section class="staff-panel staff-editor">
+    <div class="staff-panel-heading"><h2>Reservation #{{ row.id }}</h2><button class="plain-button" (click)="detail.clear()" [disabled]="action.saving()">Close</button></div>
+    <dl class="facts"><dt>Guest</dt><dd>{{ row.guest.name || row.guest.email || 'Guest #' + row.guest.id }}</dd>
+      <dt>Email</dt><dd>{{ row.guest.email || 'Unlisted' }}</dd><dt>Room</dt><dd>{{ row.room_number }} · {{ row.room_type }}</dd>
+      <dt>Dates</dt><dd>{{ row.check_in }} to {{ row.check_out }}</dd><dt>Guest count</dt><dd>{{ row.guest_count }}</dd>
+      <dt>Nightly rate</dt><dd>{{ money(row.price_per_night) }}</dd><dt>Total</dt><dd>{{ money(row.total_price) }}</dd>
+      <dt>Status</dt><dd><span class="badge" [attr.data-status]="row.status">{{ label(row.status) }}</span></dd></dl>
+    @if (canChange()) {
+      <div class="staff-actions">@for (status of actions(row); track status) {
+        <button class="button outline" (click)="change(row, status)" [disabled]="action.saving()">{{ status === 'cancelled' ? 'Cancel reservation' : 'Mark ' + label(status) }}</button>
+      }</div>
+    }
+  </section>
+}
+@if (list.loading()) { <p class="notice" role="status">Loading reservations…</p> }
+@else if (list.error()) { <p class="notice error" role="alert">{{ list.error() }}</p><button class="button outline" (click)="load()">Retry</button> }
+@else if (list.data(); as rows) {
+  <app-reservation-table [rows]="rows" [caption]="rows.length + ' reservations'" mode="detail" [busy]="action.saving()" (selected)="select($event)" />
+}

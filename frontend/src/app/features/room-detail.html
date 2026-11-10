@@ -1,0 +1,46 @@
+<section class="shell section">
+  <a class="text-link" routerLink="/rooms">← All rooms</a>
+  @if (loading()) { <p class="notice" role="status">Loading room details…</p> }
+  @else if (loadError()) { <p class="notice error" role="alert">{{ loadError() }}</p> }
+  @else if (room(); as item) {
+    <div class="detail-heading"><p class="eyebrow">Room {{ item.room_number }} · Almaty</p><h1>{{ item.room_type.name }}</h1></div>
+    <div class="detail-layout">
+      <article>
+        <div class="gallery-main"><img [src]="photos(item)[selectedPhoto()]" (error)="fallback($event)" [alt]="item.room_type.name + ' photo ' + (selectedPhoto() + 1)" /></div>
+        @if (photos(item).length > 1) {
+          <div class="gallery-thumbs" aria-label="Room photos">@for (photo of photos(item); track $index) {
+            <button type="button" (click)="selectedPhoto.set($index)" [attr.aria-pressed]="selectedPhoto() === $index" [attr.aria-label]="'View photo ' + ($index + 1)"><img [src]="photo" (error)="fallback($event)" alt="" /></button>
+          }</div>
+        }
+        @if (!item.images.length) { <p class="photo-note">Illustrative room photography</p> }
+        <div class="room-description"><h2>About the room</h2><p>{{ item.description }}</p><p>Up to {{ item.capacity }} {{ item.capacity === 1 ? 'guest' : 'guests' }}</p>
+          <h3>Amenities</h3><ul class="tags">@for (amenity of item.amenities; track $index) { <li>{{ amenity }}</li> }</ul>
+        </div>
+      </article>
+      <aside class="panel reservation">
+        <p class="eyebrow">Your stay</p><h2>{{ money(item.price_per_night) }} <small>/ night</small></h2>
+        @if (!item.available) { <p class="notice">This room is currently unavailable.</p> }
+        @else if (review(); as stay) {
+          <h3>Review your reservation</h3>
+          <dl class="facts"><dt>Check-in</dt><dd>{{ stay.check_in }}</dd><dt>Check-out</dt><dd>{{ stay.check_out }}</dd>
+            <dt>Guests</dt><dd>{{ stay.guest_count }}</dd><dt>Estimated total</dt><dd>{{ money(nights(stay.check_in, stay.check_out) * +reviewPrice()) }}</dd></dl>
+          <p class="muted">The hotel server calculates the final total when you confirm.</p>
+          @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+          <button class="button" type="button" [disabled]="busy()" (click)="confirm(stay)">{{ busy() ? 'Submitting…' : 'Confirm reservation' }}</button>
+          <button class="plain-button" type="button" [disabled]="busy()" (click)="review.set(null); error.set('')">Edit stay</button>
+        } @else {
+          <form class="form-stack" [formGroup]="form" (ngSubmit)="reviewStay(item)">
+            <fieldset class="form-stack bare-fieldset" [disabled]="busy()">
+              <label>Check-in<input type="date" formControlName="check_in" [min]="today()" required /></label>
+              <label>Check-out<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" required /></label>
+              <label>Guests<input type="number" formControlName="guest_count" min="1" [max]="item.capacity" required /></label>
+            </fieldset>
+            @if (estimate(item) > 0) { <p class="estimate">Estimated total <strong>{{ money(estimate(item)) }}</strong></p> }
+            @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+            <button class="button" type="submit" [disabled]="busy()">{{ busy() ? 'Checking availability…' : 'Review stay' }}</button>
+          </form>
+        }
+      </aside>
+    </div>
+  }
+</section>

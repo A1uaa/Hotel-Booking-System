@@ -1,0 +1,23 @@
+<section class="page-intro"><div class="shell"><p class="eyebrow">Almaty, Kazakhstan</p><h1>Contact the hotel</h1><p>Have a question about your stay? Send us a message.</p></div></section>
+<section class="shell section contact-layout">
+  <div class="contact-copy">
+    <p class="eyebrow">Koktem Park Hotel</p><h2>We’re here to help.</h2>
+    <p>Use the form to ask about room features, a reservation, or your upcoming visit.</p>
+    <dl class="facts"><dt>Location</dt><dd>Almaty, Kazakhstan</dd><dt>Street address</dt><dd>Not yet published</dd><dt>Phone and email</dt><dd>Not yet published</dd></dl>
+  </div>
+  <div class="panel">
+    <h2>Send a message</h2>
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field-pair">
+        <label>Name<input autocomplete="name" formControlName="name" required maxlength="150" /></label>
+        <label>Email<input type="email" autocomplete="email" formControlName="email" required /></label>
+      </div>
+      <label>Subject<input formControlName="subject" required maxlength="200" /></label>
+      <label>Message<textarea formControlName="message" rows="6" required maxlength="10000"></textarea></label>
+      @if (form.touched && form.invalid) { <p class="field-error">Complete every field and enter a valid email address.</p> }
+      @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+      @if (sent()) { <p class="notice success" role="status">Your message was received.</p> }
+      <button class="button" type="submit" [disabled]="busy()">{{ busy() ? 'Sending…' : 'Send message' }}</button>
+    </form>
+  </div>
+</section>

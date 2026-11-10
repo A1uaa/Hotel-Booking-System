@@ -1,0 +1,21 @@
+<section class="shell section account-layout">
+  <div class="account-image"><img src="/photos/lobby.jpg" alt="" /><div><p class="eyebrow">Koktem Park Hotel</p><p>Your stay in Almaty.</p></div></div>
+  <div class="panel auth-panel">
+    <p class="eyebrow">Guest account</p>
+    <h1>{{ register ? 'Create an account' : 'Log in' }}</h1>
+    <p>{{ register ? 'Create an account to reserve a room and manage your stays.' : 'Access your reservations and pick up where you left off.' }}</p>
+    @if (registered) { <p class="notice success" role="status">Your account is ready. Log in to continue.</p> }
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+      <label>Email address<input type="email" autocomplete="email" formControlName="email" required maxlength="254" /></label>
+      @if (form.controls.email.touched && form.controls.email.invalid) { <p class="field-error">Enter a valid email address.</p> }
+      <label>Password<input type="password" [attr.autocomplete]="register ? 'new-password' : 'current-password'" formControlName="password" required maxlength="128" /></label>
+      @if (form.controls.password.touched && form.controls.password.invalid) { <p class="field-error">{{ register ? 'Use at least eight characters.' : 'Enter your password.' }}</p> }
+      @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+      <button class="button" type="submit" [disabled]="busy()">{{ busy() ? 'Please wait…' : (register ? 'Create account' : 'Log in') }}</button>
+    </form>
+    <p class="auth-switch">
+      {{ register ? 'Already have an account?' : 'New to Koktem Park?' }}
+      <a class="text-link" [routerLink]="register ? '/login' : '/register'" [queryParams]="{returnUrl}">{{ register ? 'Log in' : 'Register' }}</a>
+    </p>
+  </div>
+</section>

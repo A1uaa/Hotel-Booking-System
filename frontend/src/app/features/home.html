@@ -1,0 +1,40 @@
+<section class="hero">
+  <div class="shell hero-content">
+    <p class="eyebrow">ALMATY, KAZAKHSTAN</p>
+    <h1>A quieter side<br />of Almaty.</h1>
+    <p>Settle into a thoughtfully appointed room and take the city at your own pace.</p>
+    <a class="button button-light" routerLink="/rooms">Explore rooms <span aria-hidden="true">↗</span></a>
+  </div>
+  <span class="hero-caption">Illustrative photography</span>
+</section>
+<div class="shell hero-search"><app-stay-search (search)="search($event)" /></div>
+
+<section class="shell section editorial">
+  <div class="editorial-photo"><img src="/photos/lobby.jpg" alt="Illustrative hotel exterior" loading="lazy" /></div>
+  <div class="editorial-copy">
+    <p class="eyebrow">Welcome to Koktem Park</p>
+    <h2>Room to slow down.</h2>
+    <p>Make yourself at home between days out in Almaty. Choose a quiet Standard Room for a short visit, a Deluxe Room with extra space, or an Executive Suite with a separate lounge.</p>
+    <a class="text-link" routerLink="/rooms">Find your room <span aria-hidden="true">↗</span></a>
+  </div>
+</section>
+
+<section class="rooms-band section">
+  <div class="shell">
+    <div class="section-heading"><div><p class="eyebrow">Stay with us</p><h2>Rooms &amp; suites</h2></div><a class="text-link" routerLink="/rooms">View all rooms ↗</a></div>
+    @if (loading()) { <p class="notice" role="status">Loading featured rooms…</p> }
+    @else if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+    @else if (!rooms().length) { <p class="notice">There are no rooms to feature at the moment.</p> }
+    @else { <div class="room-grid">@for (room of rooms(); track room.id) { <app-room-card [room]="room" /> }</div> }
+  </div>
+</section>
+
+<section class="shell section">
+  <p class="eyebrow">Why choose Koktem Park</p><h2>Make the stay yours.</h2>
+  <div class="amenity-grid">
+    <article><span aria-hidden="true">01</span><h3>Stay connected</h3><p>Wi-Fi is listed across our room types. Standard Rooms also include a work desk.</p></article>
+    <article><span aria-hidden="true">02</span><h3>Space to unwind</h3><p>Choose a Deluxe Room for extra seating or an Executive Suite for a separate lounge.</p></article>
+    <article><span aria-hidden="true">03</span><h3>Book directly</h3><p>Check availability, review your rate in tenge, and manage the reservation from your account.</p></article>
+  </div>
+</section>
+<section class="closing"><div class="shell section"><p class="eyebrow">Your next stay</p><h2>See what’s available.</h2><a class="button button-light" routerLink="/rooms">Browse rooms ↗</a></div></section>

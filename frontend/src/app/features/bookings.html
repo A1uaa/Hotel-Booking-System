@@ -1,0 +1,36 @@
+<section class="page-intro"><div class="shell"><p class="eyebrow">Guest account</p><h1>My bookings</h1><p>Review your reservations at Koktem Park Hotel.</p></div></section>
+<section class="shell section booking-list">
+  @if (feedback()) { <p class="notice success" role="status">{{ feedback() }}</p> }
+  @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <p class="notice" role="status">Loading your bookings…</p> }
+  @else if (!rows().length && error()) { <button class="button outline" (click)="load()">Retry</button> }
+  @else if (!rows().length) {
+    <div class="panel"><h2>No reservations yet</h2><p>Browse available rooms to plan a stay.</p><a class="button" routerLink="/rooms">Explore rooms ↗</a></div>
+  } @else {
+    @for (booking of rows(); track booking.id) {
+      <article class="panel booking-row">
+        @if (rooms()[booking.room]; as room) {
+          <img class="booking-photo" [src]="photos(room)[0]" (error)="fallback($event)" [alt]="room.room_type.name" />
+        }
+        <div class="booking-summary">
+          <p class="eyebrow">Reservation #{{ booking.id }}</p>
+          <h2>{{ rooms()[booking.room]?.room_type?.name || 'Room reservation' }}</h2>
+          @if (rooms()[booking.room]; as room) { <a class="text-link" [routerLink]="['/rooms', room.id]">Room {{ room.room_number }} ↗</a> }
+          <dl class="facts"><dt>Check-in</dt><dd>{{ booking.check_in }}</dd><dt>Check-out</dt><dd>{{ booking.check_out }}</dd><dt>Guests</dt><dd>{{ booking.guest_count }}</dd><dt>Total</dt><dd>{{ money(booking.total_price) }}</dd></dl>
+        </div>
+        <div class="booking-actions">
+          <span class="badge" [class.cancelled]="booking.status === 'cancelled'">{{ label(booking.status) }}</span>
+          @if (booking.status === 'pending' || booking.status === 'confirmed') {
+            @if (selected() === booking.id) {
+              <p>Cancel this reservation?</p>
+              <button class="button outline" (click)="cancel(booking.id)" [disabled]="cancelling() !== null">{{ cancelling() === booking.id ? 'Cancelling…' : 'Yes, cancel' }}</button>
+              <button class="plain-button" (click)="selected.set(null)" [disabled]="cancelling() !== null">Keep booking</button>
+            } @else {
+              <button class="plain-button" (click)="selected.set(booking.id)" [disabled]="cancelling() !== null">Cancel booking</button>
+            }
+          }
+        </div>
+      </article>
+    }
+  }
+</section>

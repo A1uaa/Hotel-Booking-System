@@ -1,0 +1,33 @@
+<section class="page-intro"><div class="shell">
+  <p class="eyebrow">Find your stay</p><h1>Rooms &amp; suites</h1>
+  <p>From a quiet single room to a suite with room for the family.</p>
+</div></section>
+<section class="shell section catalog">
+  <aside class="panel filter-panel">
+    <h2>Refine your search</h2>
+    <form [formGroup]="form" (ngSubmit)="search()" class="form-stack">
+      <label>Check-in<input type="date" formControlName="check_in" [min]="today()" /></label>
+      <label>Check-out<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" /></label>
+      <label>Guests<input type="number" formControlName="guests" min="1" max="32767" placeholder="Any" /></label>
+      <label>Room type<select formControlName="room_type"><option [ngValue]="null">All room types</option>
+        @for (type of types(); track type.id) { <option [ngValue]="type.id">{{ type.name }}</option> }
+      </select></label>
+      <div class="field-pair">
+        <label>Min. ₸<input type="number" formControlName="min_price" min="0" step="0.01" placeholder="Any" /></label>
+        <label>Max. ₸<input type="number" formControlName="max_price" min="0" step="0.01" placeholder="Any" /></label>
+      </div>
+      @if (attempted() && form.invalid) { <p class="notice error" role="alert">Check both dates, guest count, and the price range.</p> }
+      <button class="button" type="submit">Apply filters</button>
+      <button class="plain-button" type="button" (click)="clear()">Clear filters</button>
+    </form>
+  </aside>
+  <div>
+    @if (loading()) { <p class="notice" role="status">Checking available rooms…</p> }
+    @else if (error()) { <p class="notice error" role="alert">{{ error() }}</p><button class="button outline" (click)="retry()">Retry search</button> }
+    @else if (!rooms().length) { <div class="panel"><h2>No rooms match</h2><p>Try different dates, fewer guests, or a wider price range.</p><button class="button outline" (click)="clear()">Clear filters</button></div> }
+    @else {
+      <p class="eyebrow results-count" role="status">{{ rooms().length }} {{ rooms().length === 1 ? 'room' : 'rooms' }} available</p>
+      <div class="room-grid results">@for (room of rooms(); track room.id) { <app-room-card [room]="room" [stay]="dates()" /> }</div>
+    }
+  </div>
+</section>

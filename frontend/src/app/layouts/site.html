@@ -1,0 +1,40 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="shell header-row">
+    <a class="brand" routerLink="/" (click)="menu.set(false)">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 42 42" fill="none"><path d="M5 29 16 12l6 9 5-6 10 14H5Z M11 29l6-9 6 9m-2-15 3-5 4 6" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M8 34h26" stroke="currentColor" stroke-width="1.25"/></svg></span>
+      <span><strong>Koktem Park</strong><small>HOTEL · ALMATY</small></span>
+    </a>
+    <button class="menu-toggle" type="button" (click)="menu.set(!menu())" [attr.aria-expanded]="menu()" aria-controls="site-navigation">{{ menu() ? 'Close' : 'Menu' }}</button>
+    <nav id="site-navigation" class="site-nav" [class.open]="menu()" aria-label="Main navigation">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" (click)="menu.set(false)">Home</a>
+      <a routerLink="/rooms" routerLinkActive="active" (click)="menu.set(false)">Rooms</a>
+      <a routerLink="/bookings" routerLinkActive="active" (click)="menu.set(false)">My Bookings</a>
+      <a routerLink="/contact" routerLinkActive="active" (click)="menu.set(false)">Contact</a>
+      <div class="account">
+        @if (auth.user(); as user) {
+          <details class="account-menu">
+            <summary>Account</summary>
+            <div class="account-panel">
+              <span>{{ user.email }}</span>
+              <button type="button" (click)="logout()" [disabled]="leaving()">{{ leaving() ? 'Signing out…' : 'Log out' }}</button>
+            </div>
+          </details>
+        } @else {
+          <a routerLink="/login" (click)="menu.set(false)">Log in</a>
+          <a class="button button-small" routerLink="/register" (click)="menu.set(false)">Register</a>
+        }
+      </div>
+    </nav>
+  </div>
+  @if (error()) { <p class="notice error shell" role="alert">{{ error() }}</p> }
+</header>
+<main id="main" tabindex="-1"><router-outlet /></main>
+<footer class="site-footer">
+  <div class="shell footer-grid">
+    <div><p class="footer-name">Koktem Park Hotel</p><p>A city stay in Almaty, Kazakhstan.</p></div>
+    <div><p class="eyebrow">Explore</p><a routerLink="/rooms">Rooms &amp; suites</a><a routerLink="/bookings">My bookings</a></div>
+    <div><p class="eyebrow">Get in touch</p><a routerLink="/contact">Contact the hotel</a></div>
+  </div>
+  <div class="shell footer-base"><span>© Koktem Park Hotel</span><span>Illustrative property and fallback room photography</span></div>
+</footer>

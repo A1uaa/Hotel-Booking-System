@@ -1,0 +1,65 @@
+<div class="staff-heading"><div><p class="eyebrow">Inventory</p><h1>Rooms</h1><p>Maintain rates, capacity, room status, and photography.</p></div>
+  @if (can()?.addRoom) { <button class="button" type="button" (click)="add()" [disabled]="action.saving() || result.loading()">+ Add room</button> }
+</div>
+@if (action.feedback()) { <p class="notice success" role="status">{{ action.feedback() }}</p> }
+@if (action.error()) { <p class="notice error" role="alert">{{ action.error() }}</p> }
+@if (creating() || editing()) {
+  <section class="staff-panel staff-editor" aria-labelledby="room-editor">
+    <div class="staff-panel-heading"><h2 id="room-editor">{{ creating() ? 'Add room' : 'Room ' + editing()?.room_number }}</h2><button class="plain-button" type="button" (click)="close()" [disabled]="action.saving()">Close</button></div>
+    <form [formGroup]="form" (ngSubmit)="save()" class="staff-form">
+      <fieldset [disabled]="action.saving() || (!creating() && !can()?.changeRoom)" class="staff-fields">
+        <label>Room number<input formControlName="room_number" maxlength="20" /></label>
+        <label>Room type<select formControlName="room_type"><option [ngValue]="0">Select a room type</option>
+          @for (type of result.data()?.types || []; track type.id) { <option [ngValue]="type.id">{{ type.name }}</option> }
+        </select></label>
+        <label>Nightly rate (₸)<input inputmode="decimal" formControlName="price_per_night" /></label>
+        <label>Capacity<input type="number" min="1" max="32767" formControlName="capacity" /></label>
+        <label>Room status<select formControlName="status">@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+        <label class="staff-full">Description<textarea rows="3" formControlName="description"></textarea></label>
+      </fieldset>
+      @if (form.touched && form.invalid) { <p class="field-error">Complete all fields and enter a nonnegative rate with up to two decimal places.</p> }
+      @if (creating() || can()?.changeRoom) { <button class="button" [disabled]="action.saving()">Save room</button> }
+    </form>
+    @if (editing(); as room) {
+      <div class="staff-photos">
+        <h3>Room photography</h3>
+        @if (!room.images.length) { <p class="muted">No uploaded photos for this room.</p> }
+        <div class="staff-photo-grid">
+          @for (image of room.images; track image.id) {
+            <div><img [src]="image.image" alt="Room photo" (error)="fallback($event)" />
+              @if (image.is_primary) { <span class="badge">Primary</span> }
+              @else if (can()?.changePhoto) { <button class="plain-button" (click)="primary(room, image)" [disabled]="action.saving()">Make primary</button> }
+              @if (can()?.deletePhoto) { <button class="plain-button" (click)="deletePhoto(room, image)" [disabled]="action.saving()">Remove</button> }
+            </div>
+          }
+        </div>
+        @if (can()?.addPhoto) {
+          <div class="staff-upload"><label>JPEG, PNG or WebP · 8 MB maximum<input #photoInput type="file" accept="image/jpeg,image/png,image/webp" (change)="choose($event)" /></label>
+          <button class="button outline" (click)="upload(room, photoInput)" [disabled]="!photo() || action.saving()">Upload photo</button></div>
+        }
+      </div>
+      <div class="staff-room-danger">
+        @if (room.has_history) {
+          <span>Reservation history is retained for this room.</span>
+          @if (can()?.changeRoom && room.status !== 'out_of_service') { <button class="button outline" (click)="deactivate(room)" [disabled]="action.saving()">Deactivate room</button> }
+        } @else if (can()?.deleteRoom) {
+          <button class="button outline" (click)="remove(room)" [disabled]="action.saving()">Delete room</button>
+        }
+      </div>
+    }
+  </section>
+}
+@if (result.loading()) { <p class="notice" role="status">Loading inventory…</p> }
+@else if (result.error()) { <p class="notice error" role="alert">{{ result.error() }}</p><button class="button outline" (click)="load()">Retry</button> }
+@else if (result.data(); as inventory) {
+  <div class="staff-panel staff-table-wrap">
+    <table class="staff-table"><caption>{{ inventory.rooms.length }} rooms</caption>
+      <thead><tr><th>Room</th><th>Type</th><th>Capacity</th><th>Nightly rate</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>@for (room of inventory.rooms; track room.id) {
+        <tr><th scope="row">{{ room.room_number }}</th><td>{{ room.room_type_name }}</td><td>{{ room.capacity }}</td><td>{{ money(room.price_per_night) }}</td>
+          <td><span class="badge" [attr.data-status]="room.status">{{ label(room.status) }}</span></td>
+          <td><button class="plain-button" (click)="select(room)" [disabled]="action.saving()">Manage</button></td></tr>
+      } @empty { <tr><td colspan="6">No rooms in inventory.</td></tr> }</tbody>
+    </table>
+  </div>
+}
