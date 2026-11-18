@@ -258,3 +258,53 @@ textarea { resize: vertical; }
 .swatch.free { background: var(--cream); }
 .swatch.booked { background: #f1d9d1; }
 .swatch.chosen { background: var(--forest); }
+
+/* Reviews and ratings */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.stars { color: #b08a3e; letter-spacing: .08em; white-space: nowrap; }
+.room-rating { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: 0 0 .6rem; }
+.reviews { margin-top: 2.5rem; scroll-margin-top: 1rem; }
+.review-summary { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; font-size: 1.05rem; }
+.rating-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1.25rem; align-items: start; }
+.rating-layout .panel h3 { margin-bottom: .6rem; }
+.rating-summary { display: grid; gap: 1.25rem; justify-items: start; }
+.rating-ring {
+  --pct: 0; display: grid; place-items: center; width: 9.5rem; aspect-ratio: 1; border-radius: 50%;
+  background: conic-gradient(var(--forest) calc(var(--pct) * 1%), var(--cream) 0);
+}
+.rating-ring-inner { display: grid; place-content: center; text-align: center; width: 78%; aspect-ratio: 1; border-radius: 50%; background: var(--paper); line-height: 1.15; }
+.rating-ring-inner strong { font: 2.3rem/1 var(--serif); color: var(--forest); }
+.rating-ring-inner small { color: var(--gold); font-size: .6rem; font-weight: 760; letter-spacing: .14em; text-transform: uppercase; margin-top: .3rem; }
+.rating-side { width: 100%; }
+.rating-side p { margin: 0 0 .6rem; }
+.rating-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.rating-bars li { display: grid; grid-template-columns: 2.2rem 1fr 2.6rem; align-items: center; gap: .6rem; font-size: .82rem; }
+.rating-bars .bar-label { color: var(--muted); }
+.rating-bars .bar-label span { color: #b08a3e; }
+.rating-bars .bar { height: .5rem; border-radius: 99px; background: var(--cream); overflow: hidden; }
+.rating-bars .bar span { display: block; height: 100%; border-radius: 99px; background: var(--forest); }
+.rating-bars .bar-percent { text-align: right; color: var(--muted); }
+.feedback-form { display: grid; gap: .7rem; justify-items: start; width: 100%; }
+.feedback-form h3 { margin: 0; }
+.feedback-form p { margin: 0; }
+.feedback-form label { display: grid; gap: .3rem; width: 100%; font-size: .86rem; font-weight: 600; }
+.feedback-form input, .feedback-form textarea { width: 100%; font: inherit; font-weight: 400; padding: .55rem .6rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); }
+.feedback-form textarea { resize: vertical; }
+.rating-chip { display: inline-block; padding: .15rem .65rem; border-radius: 99px; background: #e2ecdd; color: var(--forest); font-size: .82rem; font-weight: 650; }
+.review-list-title { margin-top: 2rem; }
+.review { padding: .9rem 0; border-top: 1px solid var(--line); }
+.review p { margin: .25rem 0; }
+.review-head { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.star-input { display: flex; gap: .15rem; }
+.star-input button { border: 0; background: transparent; color: #b08a3e; font-size: 2rem; line-height: 1; padding: .1rem .15rem; cursor: pointer; transition: transform .12s ease; }
+.star-input button:hover { transform: scale(1.12); }
+.star-input button:not(.on) { color: #a9ad9f; }
+.star-input button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Language switcher */
+.language-switcher { display: flex; align-items: center; gap: .35rem; }
+.language-switcher button { display: grid; place-items: center; padding: 2px; border: 2px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; opacity: .6; transition: opacity .12s ease, border-color .12s ease; }
+.language-switcher button:hover { opacity: 1; }
+.language-switcher button.active { opacity: 1; border-color: var(--gold); }
+.language-switcher button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.language-switcher svg { display: block; width: 1.9rem; height: 1.3rem; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }

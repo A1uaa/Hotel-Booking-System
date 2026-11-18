@@ -4,13 +4,17 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, map, of, switchMap } from 'rxjs';
-import { apiError, BookingInput, HotelApi, Room, RoomAvailability } from '../core/api';
+import { apiError, BookingInput, HotelApi, Room, RoomAvailability, RoomReviews } from '../core/api';
 import { Auth } from '../core/auth';
+import { ContentPipe, translate, TranslatePipe } from '../core/i18n';
 import { AvailabilityCalendar, CalendarPick } from '../shared/availability-calendar';
 import { imageFallback, roomPhotosFor } from '../shared/photos';
+import { FeedbackForm } from '../shared/feedback-form';
+import { RatingSummary } from '../shared/rating-summary';
+import { Stars } from '../shared/stars';
 import { hotelToday, money, nights, stayDates } from '../shared/stay';
 
-@Component({ imports: [ReactiveFormsModule, RouterLink, AvailabilityCalendar], templateUrl: './room-detail.html' })
+@Component({ imports: [ReactiveFormsModule, RouterLink, AvailabilityCalendar, Stars, RatingSummary, FeedbackForm, TranslatePipe, ContentPipe], templateUrl: './room-detail.html' })
 export class RoomDetail {
   private readonly api = inject(HotelApi);
   private readonly auth = inject(Auth);
@@ -19,6 +23,7 @@ export class RoomDetail {
   private readonly destroy = inject(DestroyRef);
   readonly room = signal<Room | null>(null);
   readonly availability = signal<RoomAvailability | null>(null);
+  readonly reviews = signal<RoomReviews | null>(null);
   readonly loading = signal(true);
   readonly loadError = signal('');
   readonly error = signal('');
@@ -44,6 +49,7 @@ export class RoomDetail {
         this.loading.set(true);
         this.room.set(null);
         this.availability.set(null);
+        this.reviews.set(null);
         this.loadError.set('');
         this.error.set('');
         this.review.set(null);
@@ -70,6 +76,11 @@ export class RoomDetail {
       switchMap(params => this.api.availability(Number(params.get('id'))).pipe(catchError(() => of(null)))),
       takeUntilDestroyed(),
     ).subscribe(availability => this.availability.set(availability));
+    // Reviews are optional too: the room page still works without them.
+    this.route.paramMap.pipe(
+      switchMap(params => this.api.roomReviews(Number(params.get('id'))).pipe(catchError(() => of(null)))),
+      takeUntilDestroyed(),
+    ).subscribe(reviews => this.reviews.set(reviews));
   }
 
   pickDates(pick: CalendarPick) {
@@ -87,7 +98,7 @@ export class RoomDetail {
     this.form.markAllAsTouched();
     const { check_in, check_out, guest_count } = this.form.getRawValue();
     if (this.form.invalid || guest_count! > room.capacity) {
-      this.error.set('Choose valid stay dates and a guest count within this room’s capacity.');
+      this.error.set(translate('rd.errInvalid'));
       return;
     }
     const input = { room: room.id, check_in, check_out, guest_count: guest_count! };
@@ -97,11 +108,11 @@ export class RoomDetail {
         this.busy.set(false);
         if (this.room()?.id !== room.id) return;
         if (!result.available) {
-          this.error.set('This room is unavailable for those dates. Try another stay.');
+          this.error.set(translate('rd.errUnavailable'));
           return;
         }
         if (input.guest_count > result.capacity) {
-          this.error.set('This room cannot accommodate that many guests.');
+          this.error.set(translate('rd.errGuests'));
           return;
         }
         this.reviewPrice.set(result.price_per_night);
@@ -126,7 +137,7 @@ export class RoomDetail {
           return;
         }
         this.error.set(apiError(error) + (error instanceof HttpErrorResponse && error.status === 0
-          ? ' Check My Bookings before submitting again.' : ''));
+          ? translate('rd.errCheck') : ''));
       },
     });
   }

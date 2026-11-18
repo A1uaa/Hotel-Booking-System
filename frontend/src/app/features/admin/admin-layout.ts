@@ -18,6 +18,7 @@ import { mutation } from './admin-state';
               <a routerLink="/admin/front-desk" routerLinkActive="current">Front desk</a>
             }
             @if (can.payments) { <a routerLink="/admin/payments" routerLinkActive="current">Payments</a> }
+            @if (can.reviews) { <a routerLink="/admin/reviews" routerLinkActive="current">Reviews</a> }
             @if (can.guests) { <a routerLink="/admin/guests" routerLinkActive="current">Guests</a> }
             @if (can.reports) { <a routerLink="/admin/reports" routerLinkActive="current">Reports</a> }
           }

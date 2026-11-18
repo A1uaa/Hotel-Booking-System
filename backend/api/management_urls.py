@@ -17,6 +17,8 @@ urlpatterns = [
     path("payments/", views.payments),
     path("payments/<int:pk>/", views.payment),
     path("payments/<int:pk>/status/", views.payment_status),
+    path("reviews/", views.reviews),
+    path("reviews/<int:pk>/visibility/", views.review_visibility),
     path("guests/", views.guests),
     path("guests/<int:pk>/", views.guest),
     path("front-desk/", views.front_desk),

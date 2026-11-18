@@ -6,9 +6,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from rest_framework import serializers
 
-from hotel.models import Booking, ContactMessage, Payment, Room, RoomImage, RoomType
+from hotel.models import Booking, ContactMessage, Payment, Review, Room, RoomImage, RoomType
 
-from .services import payment_summary
+from .services import payment_summary, round_average
 
 User = get_user_model()
 
@@ -90,13 +90,22 @@ class RoomSerializer(serializers.ModelSerializer):
     amenities = serializers.JSONField(source="room_type.amenities")
     images = RoomImageSerializer(many=True)
     available = serializers.BooleanField()
+    rating_average = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Room
         fields = (
             "id", "room_number", "room_type", "description", "price_per_night",
-            "capacity", "amenities", "images", "available",
+            "capacity", "amenities", "images", "available", "rating_average", "rating_count",
         )
+
+    # Annotated by with_ratings(); a room that was not annotated simply has no rating yet.
+    def get_rating_average(self, room):
+        return round_average(getattr(room, "rating_average", None))
+
+    def get_rating_count(self, room):
+        return getattr(room, "rating_count", 0) or 0
 
 
 class BookingInputSerializer(StaySerializer):
@@ -123,6 +132,22 @@ class BookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
             "id", "room", "check_in", "check_out", "guest_count",
             "price_per_night", "total_price", "status", "created_at", "updated_at",
         )
+
+
+class ReviewInputSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
+    name = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+
+
+class PublicReviewSerializer(serializers.ModelSerializer):
+    """What the room page shows: a display name only, never an email or account details."""
+
+    author = serializers.CharField(source="author_name")
+
+    class Meta:
+        model = Review
+        fields = ("id", "rating", "comment", "author", "created_at")
 
 
 class ContactSerializer(serializers.ModelSerializer):

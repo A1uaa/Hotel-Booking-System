@@ -15,12 +15,12 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from hotel.models import Booking, Payment, Room, RoomImage, RoomType
+from hotel.models import Booking, Payment, Review, Room, RoomImage, RoomType
 from .authentication import authenticate_email
 from .management_permissions import capabilities, management_access, staff_access
 from .management_serializers import (
-    ChangePaymentStatus, ChangeStatus, GuestSerializer, ManagedBookingSerializer, ManagedPaymentSerializer,
-    ManagedRoomSerializer, ManagedRoomTypeSerializer, PhotoUpload, PrimaryPhoto, RecordPayment, ReportDates, User,
+    ChangePaymentStatus, ChangeReviewVisibility, ChangeStatus, GuestSerializer, ManagedBookingSerializer,
+    ManagedPaymentSerializer, ManagedReviewSerializer, ManagedRoomSerializer, ManagedRoomTypeSerializer, PhotoUpload, PrimaryPhoto, RecordPayment, ReportDates, User,
 )
 from .management_stats import dashboard, reports
 from .serializers import RoomImageSerializer, UserSerializer
@@ -33,6 +33,7 @@ BOOKING_READ = ("view_booking",)
 BOOKING_WRITE = (*BOOKING_READ, "change_booking")
 PAYMENT_READ = ("view_booking", "view_payment")
 STATS_READ = ("view_room", "view_booking", "view_payment")
+REVIEW_READ = ("view_review",)
 
 
 @api_view(["POST"])
@@ -383,3 +384,39 @@ def reservation_payments(request, pk):
     serializer.is_valid(raise_exception=True)
     created = record_payment(pk, user=request.user, **serializer.validated_data)
     return Response(payment_data(get_object_or_404(managed_payments(), pk=created.pk)), status=201)
+
+
+def managed_reviews():
+    return Review.objects.select_related("user", "room").order_by("-created_at", "-pk")
+
+
+@api_view(["GET"])
+@permission_classes([management_access(GET=REVIEW_READ)])
+def reviews(request):
+    rows = managed_reviews()
+    query = request.query_params.get("q", "").strip()[:254]
+    if query:
+        rows = rows.filter(
+            Q(user__email__icontains=query) | Q(author_name__icontains=query)
+            | Q(room__room_number__icontains=query) | Q(comment__icontains=query)
+        )
+    visibility = request.query_params.get("visibility")
+    if visibility:
+        visibility = serializers.ChoiceField([("visible", "Visible"), ("hidden", "Hidden")]).run_validation(visibility)
+        rows = rows.filter(is_hidden=visibility == "hidden")
+    rating = request.query_params.get("rating")
+    if rating:
+        rows = rows.filter(rating=serializers.IntegerField(min_value=1, max_value=5).run_validation(rating))
+    return Response(ManagedReviewSerializer(rows, many=True).data)
+
+
+@api_view(["POST"])
+@permission_classes([management_access(POST=(*REVIEW_READ, "change_review"))])
+@handle_database_contention
+def review_visibility(request, pk):
+    serializer = ChangeReviewVisibility(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    review = get_object_or_404(managed_reviews(), pk=pk)
+    review.is_hidden = serializer.validated_data["hidden"]
+    review.save(update_fields=["is_hidden", "updated_at"])
+    return Response(ManagedReviewSerializer(review).data)

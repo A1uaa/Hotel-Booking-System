@@ -15,6 +15,8 @@ Development base URL: `http://localhost:8000/api/`. Send JSON with `Content-Type
 | GET `rooms/` | Public | 200, array of matching bookable rooms |
 | GET `rooms/{id}/` | Public | 200, room details and availability |
 | GET `rooms/{id}/availability/` | Public | 200, occupied date ranges for the room calendar |
+| GET `rooms/{id}/reviews/` | Public | 200, visible reviews with count, average and per-star breakdown |
+| POST `rooms/{id}/reviews/` | Public (CSRF, rate limited) | 201, refreshed review list plus the new `review`; 409 if a signed-in user already reviewed the room |
 | GET `bookings/` | Session | 200, array of the current user's bookings |
 | POST `bookings/` | Session + CSRF | 201, new booking |
 | GET `bookings/{id}/` | Session and owner | 200, booking details |
@@ -80,6 +82,20 @@ Each image includes `id`, `image` (URL), and `is_primary`. Without dates, availa
 ```
 
 `check_in` is the first occupied night and `check_out` is the day the room is free again, so another guest may check in on that day. Cancelled and finished stays are omitted and no guest details are exposed. `bookable: false` means the room is in maintenance or out of service.
+
+### Reviews and ratings
+
+Every room in `GET /api/rooms/` and `GET /api/rooms/{id}/` carries `rating_average` (one decimal, `null` when there are no reviews) and `rating_count`, counting visible reviews only.
+
+`GET /api/rooms/{id}/reviews/` returns the visible reviews of a room, newest first (up to 50), with the count, the average and how many reviews gave each star rating over all visible reviews:
+
+```json
+{"room": 3, "count": 2, "average": 4.5, "breakdown": {"1": 0, "2": 0, "3": 0, "4": 1, "5": 1}, "reviews": [{"id": 7, "rating": 5, "comment": "Quiet and clean.", "author": "Aida", "created_at": "2027-05-13T09:12:00+05:00"}]}
+```
+
+`POST /api/rooms/{id}/reviews/` with `{"rating": 1-5, "comment": "optional, up to 2000 characters", "name": "optional, up to 80 characters"}` lets **anyone** leave feedback, signed in or not, with no booking needed. It returns `201` with the same body as the `GET` above plus the new `review`. The shown name is `name`, else the account's first name, else `Guest`. A signed-in user can review a room once (`409` afterwards); visitors are limited only by the rate limit (`reviews` in `DEFAULT_THROTTLE_RATES`, 10 posts per hour per user or IP, `429` beyond it). Like every write it needs the CSRF token from `auth/csrf/`.
+
+Reviews never expose an email or account id. Staff can hide a review from the public site under `admin/reviews/` (see below); hidden reviews are not shown or counted.
 
 ## Bookings and contact
 
@@ -156,6 +172,8 @@ These routes are under `/api/admin/`. They use the same session cookie and CSRF 
 | GET `me/` | Verify staff session and return capabilities. |
 | GET `dashboard/`, GET `reports/?start=YYYY-MM-DD&end=YYYY-MM-DD` | View rooms, bookings, and payments. |
 | GET `rooms/`, `room-types/`, `rooms/{id}/` | View rooms and room types. |
+| GET `reviews/?q=&visibility=visible\|hidden&rating=1-5` | View reviews (`q` searches author, email, room number and comment). `guest` is `null` for visitors without an account. |
+| POST `reviews/{id}/visibility/` | View and change review. Body `{"hidden": true}` hides the review from the public site, `false` shows it again. |
 | POST `rooms/`, PATCH or DELETE `rooms/{id}/` | Room read permissions plus add, change, or delete permission respectively. |
 | POST `rooms/{id}/photos/` | View room and add room image. Multipart field `image`, JPEG, PNG, or WebP, up to 8 MB and 25 megapixels. |
 | PATCH or DELETE `rooms/{id}/photos/{photo_id}/` | View room and change or delete room image. PATCH accepts `{"is_primary":true}`. |

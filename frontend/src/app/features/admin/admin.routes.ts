@@ -11,6 +11,7 @@ export const adminRoutes: Routes = [
       { path: 'rooms', title: 'Manage Rooms | Koktem Park Hotel', loadComponent: () => import('./admin-rooms').then(m => m.AdminRooms) },
       { path: 'reservations', title: 'Manage Reservations | Koktem Park Hotel', loadComponent: () => import('./admin-reservations').then(m => m.AdminReservations) },
       { path: 'payments', title: 'Payments | Koktem Park Hotel', loadComponent: () => import('./admin-payments').then(m => m.AdminPayments) },
+      { path: 'reviews', title: 'Reviews | Koktem Park Hotel', loadComponent: () => import('./admin-reviews').then(m => m.AdminReviews) },
       { path: 'guests', title: 'Guests | Koktem Park Hotel', loadComponent: () => import('./admin-guests').then(m => m.AdminGuests) },
       { path: 'front-desk', title: 'Front Desk | Koktem Park Hotel', loadComponent: () => import('./admin-desk').then(m => m.AdminDesk) },
       { path: 'reports', title: 'Reports | Koktem Park Hotel', loadComponent: () => import('./admin-reports').then(m => m.AdminReports) },

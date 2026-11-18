@@ -15,13 +15,14 @@ from hotel.models import Booking, Payment, Room
 from .authentication import authenticate_email
 from .serializers import (
     BookingInputSerializer, BookingSerializer, ContactSerializer,
-    PaymentInputSerializer, PaymentSerializer, RegistrationSerializer, RoomFilterSerializer,
-    RoomSerializer, User, UserSerializer,
+    PaymentInputSerializer, PaymentSerializer, PublicReviewSerializer, RegistrationSerializer,
+    ReviewInputSerializer, RoomFilterSerializer, RoomSerializer, User, UserSerializer,
 )
 from .services import (
-    Conflict, cancel_booking, create_booking, handle_database_contention, pay_booking, with_payment_totals,
+    Conflict, cancel_booking, create_booking, create_review, handle_database_contention, pay_booking,
+    room_reviews, with_payment_totals, with_ratings,
 )
-from .throttles import PaymentThrottle
+from .throttles import PaymentThrottle, ReviewThrottle
 
 
 @api_view(["GET"])
@@ -80,7 +81,7 @@ def room_catalog(params):
     filters = RoomFilterSerializer(data=params)
     filters.is_valid(raise_exception=True)
     values = filters.validated_data
-    rooms = Room.objects.select_related("room_type").prefetch_related("images").order_by("room_number")
+    rooms = with_ratings(Room.objects.select_related("room_type").prefetch_related("images")).order_by("room_number")
     for param, lookup in (
         ("guests", "capacity__gte"), ("room_type", "room_type_id"),
         ("min_price", "price_per_night__gte"), ("max_price", "price_per_night__lte"),
@@ -129,6 +130,30 @@ def room_availability(request, pk):
         "bookable": room.status == Room.Status.AVAILABLE,
         "booked": list(booked),
     })
+
+
+def review_payload(room):
+    summary, rows = room_reviews(room)
+    return {"room": room.pk, **summary, "reviews": PublicReviewSerializer(rows, many=True).data}
+
+
+@api_view(["GET", "POST"])
+@throttle_classes([ReviewThrottle])
+@handle_database_contention
+def room_review_list(request, pk):
+    """Public. GET: the visible reviews of a room with count, average and the per-star breakdown.
+
+    POST: anyone, signed in or not, leaves a rating (1-5) with an optional comment and name.
+    Responds with the refreshed review list plus the new `review`.
+    """
+    room = get_object_or_404(Room, pk=pk)
+    if request.method == "GET":
+        return Response(review_payload(room))
+    serializer = ReviewInputSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = request.user if request.user.is_authenticated else None
+    review = create_review(room, user, **serializer.validated_data)
+    return Response({**review_payload(room), "review": PublicReviewSerializer(review).data}, status=201)
 
 
 @api_view(["GET", "POST"])

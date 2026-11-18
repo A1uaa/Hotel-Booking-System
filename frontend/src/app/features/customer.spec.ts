@@ -1,10 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
-import { API_BASE, Booking, Room, RoomAvailability } from '../core/api';
+import { API_BASE, Booking, Room, RoomAvailability, RoomReviews } from '../core/api';
 import { Auth } from '../core/auth';
+import { FeedbackForm } from '../shared/feedback-form';
 import { hotelToday } from '../shared/stay';
 import { Bookings } from './bookings';
 import { RoomDetail } from './room-detail';
@@ -16,6 +18,8 @@ const room: Room = {
   amenities: ['Wi-Fi'], images: [], available: true,
 };
 const availability: RoomAvailability = { room: 3, bookable: true, booked: [] };
+const emptyBreakdown = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+const noReviews: RoomReviews = { room: 3, count: 0, average: null, breakdown: emptyBreakdown, reviews: [] };
 const start = hotelToday();
 const end = new Date(Date.parse(start) + 2 * 86_400_000).toISOString().slice(0, 10);
 const booking: Booking = {
@@ -54,6 +58,7 @@ describe('Customer pages and the hotel API', () => {
     initialRequests.forEach(request => request.flush([room]));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Twin room');
+    expect(fixture.nativeElement.textContent).toContain('No reviews yet');
 
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const filters = { check_in: start, check_out: end, guests: 2, room_type: 1, min_price: 20000, max_price: 30000 };
@@ -75,6 +80,7 @@ describe('Customer pages and the hotel API', () => {
     fixture.detectChanges();
     http.expectOne('/api/rooms/3/').flush(room);
     http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
     const page = fixture.componentInstance;
     page.form.setValue({ check_in: start, check_out: end, guest_count: 2 });
     page.reviewStay(room);
@@ -117,6 +123,7 @@ describe('Customer pages and the hotel API', () => {
     fixture.detectChanges();
     http.expectOne('/api/rooms/3/').flush(room);
     http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-availability-calendar')).not.toBeNull();
     fixture.componentInstance.pickDates({ check_in: start, check_out: end });
@@ -128,9 +135,94 @@ describe('Customer pages and the hotel API', () => {
     fixture.detectChanges();
     http.expectOne('/api/rooms/3/').flush(room);
     http.expectOne('/api/rooms/3/availability/').flush({}, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-availability-calendar')).toBeNull();
     expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
+  });
+
+  it('shows the rating of each room on the rooms page', () => {
+    const fixture = TestBed.createComponent(Rooms);
+    fixture.detectChanges();
+    http.match('/api/rooms/').forEach(request => request.flush([{ ...room, rating_average: 4.6, rating_count: 12 }]));
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('4.6');
+    expect(text).toContain('(12 reviews)');
+    expect(text).not.toContain('No reviews yet');
+  });
+
+  it('shows the rating section and the feedback section inside the room page', () => {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush({
+      room: 3, count: 2, average: 4.5, breakdown: { ...emptyBreakdown, '4': 1, '5': 1 }, reviews: [
+        { id: 2, rating: 5, comment: 'Quiet and spotless.', author: 'Guest', created_at: '2026-10-02T10:00:00+05:00' },
+        { id: 1, rating: 4, comment: '', author: 'Aida', created_at: '2026-09-01T10:00:00+05:00' },
+      ],
+    });
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Ratings & feedback');
+    expect(text).toContain('4.5');
+    expect(text).toContain('2 reviews');
+    expect(text).toContain('50%'); // half of the guests gave 5 stars
+    expect(text).toContain('How was your experience?');
+    expect(text).toContain('Quiet and spotless.');
+    expect(text).toContain('Aida');
+    expect(fixture.nativeElement.querySelector('app-rating-summary')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-feedback-form')).not.toBeNull();
+  });
+
+  it('says so when a room has no reviews yet, keeps the feedback form, and hides the section if reviews cannot load', () => {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No reviews yet');
+    expect(fixture.nativeElement.querySelector('app-feedback-form')).not.toBeNull();
+
+    const broken = TestBed.createComponent(RoomDetail);
+    broken.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush({}, { status: 500, statusText: 'Server Error' });
+    broken.detectChanges();
+    expect(broken.nativeElement.textContent).not.toContain('Ratings & feedback');
+    expect(broken.nativeElement.querySelector('form')).not.toBeNull();
+  });
+
+  it('lets anyone leave feedback on the room page and shows it at once', () => {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
+    fixture.detectChanges();
+    const form = fixture.debugElement.query(By.directive(FeedbackForm)).componentInstance as FeedbackForm;
+    form.rating.set(5);
+    form.name.set(' Aida ');
+    form.comment.set('  Great room  ');
+    form.send();
+    http.expectOne('/api/auth/csrf/').flush({ csrf_token: 'feedback-token' });
+    const submit = http.expectOne('/api/rooms/3/reviews/');
+    expect(submit.request.method).toBe('POST');
+    expect(submit.request.body).toEqual({ rating: 5, comment: 'Great room', name: 'Aida' });
+    expect(submit.request.headers.get('X-CSRFToken')).toBe('feedback-token');
+    const created = { id: 1, rating: 5, comment: 'Great room', author: 'Aida', created_at: '2026-11-18T10:00:00+05:00' };
+    submit.flush({
+      room: 3, count: 1, average: 5, breakdown: { ...emptyBreakdown, '5': 1 }, reviews: [created], review: created,
+    }, { status: 201, statusText: 'Created' });
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Thank you');
+    expect(text).toContain('Great room');
+    expect(text).toContain('1 review');
+    expect(text).not.toContain('No reviews yet');
   });
 
   it('shows cancellation only after the server responds and reloads the list', () => {

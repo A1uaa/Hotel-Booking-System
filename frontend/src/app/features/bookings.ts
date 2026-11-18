@@ -3,10 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiError, Booking, HotelApi, Room } from '../core/api';
+import { ContentPipe, translate, TranslatePipe } from '../core/i18n';
 import { imageFallback, roomPhotosFor } from '../shared/photos';
 import { money, statusLabel } from '../shared/stay';
 
-@Component({ imports: [RouterLink], templateUrl: './bookings.html' })
+@Component({ imports: [RouterLink, TranslatePipe, ContentPipe], templateUrl: './bookings.html' })
 export class Bookings {
   private readonly api = inject(HotelApi);
   private readonly destroy = inject(DestroyRef);
@@ -55,7 +56,7 @@ export class Bookings {
         this.rows.update(rows => rows.map(row => row.id === booking.id ? booking : row));
         this.cancelling.set(null);
         this.selected.set(null);
-        this.feedback.set('Reservation #' + id + ' was cancelled.');
+        this.feedback.set(translate('bk.cancelled', { id }));
         this.load();
       },
       error: error => { this.cancelling.set(null); this.error.set(apiError(error)); },

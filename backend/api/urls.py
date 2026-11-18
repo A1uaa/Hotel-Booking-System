@@ -13,6 +13,7 @@ urlpatterns = [
     path("rooms/", views.room_list, name="api-rooms"),
     path("rooms/<int:pk>/", views.room_detail, name="api-room-detail"),
     path("rooms/<int:pk>/availability/", views.room_availability, name="api-room-availability"),
+    path("rooms/<int:pk>/reviews/", views.room_review_list, name="api-room-reviews"),
     path("bookings/", views.bookings, name="api-bookings"),
     path("bookings/<int:pk>/", views.booking_detail, name="api-booking-detail"),
     path("bookings/<int:pk>/cancel/", views.booking_cancel, name="api-booking-cancel"),

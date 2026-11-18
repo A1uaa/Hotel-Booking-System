@@ -18,7 +18,7 @@ export interface Reservation extends Booking {
 export type Capabilities = Record<
   'dashboard' | 'rooms' | 'addRoom' | 'changeRoom' | 'deleteRoom' | 'addPhoto' |
   'changePhoto' | 'deletePhoto' | 'reservations' | 'changeBooking' | 'guests' | 'reports' |
-  'payments' | 'recordPayment' | 'changePayment', boolean
+  'payments' | 'recordPayment' | 'changePayment' | 'reviews' | 'moderateReviews', boolean
 >;
 export interface AdminSession { account: Account; capabilities: Capabilities; }
 export interface Dashboard {
@@ -31,6 +31,11 @@ export interface ManagedPayment {
   booking_total: string; amount: string; method: PaymentMethod; payment_method: string;
   status: PaymentStatus; note: string; recorded_by_email: string; paid_at: string | null; created_at: string;
 }
+export interface ManagedReview {
+  id: number; room: number; room_number: string; author_name: string; guest: Guest | null;
+  rating: number; comment: string; is_hidden: boolean; created_at: string;
+}
+export interface ReviewFilters { q: string; visibility: string; rating: string; }
 export interface PaymentFilters { q: string; status: string; method: string; date: string; }
 export interface RecordPaymentInput { method: PaymentMethod; amount: string; note: string; }
 export interface FrontDesk { date: string; arrivals: Reservation[]; departures: Reservation[]; }
@@ -85,6 +90,10 @@ export class AdminApi {
   reservationPayments(id: number) { return this.api.get<ManagedPayment[]>('admin/reservations/' + id + '/payments/'); }
   recordPayment(id: number, data: RecordPaymentInput) {
     return this.api.post<ManagedPayment>('admin/reservations/' + id + '/payments/', data);
+  }
+  reviews(filters: ReviewFilters) { return this.api.get<ManagedReview[]>('admin/reviews/', { ...filters }); }
+  setReviewHidden(id: number, hidden: boolean) {
+    return this.api.post<ManagedReview>('admin/reviews/' + id + '/visibility/', { hidden });
   }
   reports(start: string, end: string) { return this.api.get<HotelReport>('admin/reports/', { start, end }); }
 }

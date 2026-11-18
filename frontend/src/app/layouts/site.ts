@@ -3,10 +3,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { apiError } from '../core/api';
 import { Auth } from '../core/auth';
+import { TranslatePipe } from '../core/i18n';
+import { LanguageSwitcher } from '../shared/language-switcher';
 
 @Component({
   selector: 'app-site',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe, LanguageSwitcher],
   templateUrl: './site.html',
 })
 export class Site {

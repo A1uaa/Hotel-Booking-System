@@ -1,0 +1,44 @@
+import type { Lang } from './i18n';
+
+// Room types, descriptions and amenities come from the hotel database in English.
+// The seeded hotel content is translated here; any text that is not listed (for example
+// a room the staff added later) is shown as it was written.
+export const CONTENT: Record<Lang, Record<string, string>> = {
+  en: {},
+  ru: {
+    'Standard Room': 'Стандартный номер', 'Deluxe Room': 'Номер «Делюкс»', 'Executive Suite': 'Представительский люкс',
+    'Comfortable rooms for short stays and business trips.': 'Комфортные номера для коротких поездок и командировок.',
+    'Spacious rooms with upgraded bedding and extra seating.': 'Просторные номера с улучшенным постельным бельём и дополнительными местами для сидения.',
+    'Suites with a separate lounge and space for longer stays.': 'Люксы с отдельной гостиной и местом для длительного проживания.',
+    'Quiet single room overlooking the courtyard.': 'Тихий одноместный номер с видом на внутренний двор.',
+    'Queen room with blackout curtains and a courtyard view.': 'Номер с большой кроватью, плотными шторами и видом на внутренний двор.',
+    'Twin room with two single beds and a shared desk.': 'Номер с двумя односпальными кроватями и общим рабочим столом.',
+    'King room with a reading chair and park-facing windows.': 'Номер с кроватью king-size, креслом для чтения и окнами на парк.',
+    'Deluxe twin room with a window bench and city views.': 'Номер «Делюкс» с двумя кроватями, скамьёй у окна и видом на город.',
+    'Family room with a queen bed and a sofa bed.': 'Семейный номер с большой кроватью и раскладным диваном.',
+    'Corner king suite with a lounge and wide park views.': 'Угловой люкс с кроватью king-size, гостиной и панорамным видом на парк.',
+    'King suite with a dining nook and a single sofa bed.': 'Люкс с кроватью king-size, обеденной зоной и одним раскладным диваном.',
+    'Family suite with a king bedroom and a twin bedroom.': 'Семейный люкс с главной спальней и спальней с двумя кроватями.',
+    'Wi-Fi': 'Wi-Fi', 'Work desk': 'Рабочий стол', 'Shower': 'Душ', 'Tea station': 'Чайная станция',
+    'Mini fridge': 'Мини-холодильник', 'Smart TV': 'Смарт-ТВ', 'Bathrobes': 'Халаты',
+    'Espresso machine': 'Кофемашина', 'Separate lounge': 'Отдельная гостиная', 'Bathtub': 'Ванна',
+  },
+  kk: {
+    'Standard Room': 'Стандартты бөлме', 'Deluxe Room': 'Делюкс бөлмесі', 'Executive Suite': 'Executive люкс',
+    'Comfortable rooms for short stays and business trips.': 'Қысқа сапарлар мен іссапарларға арналған жайлы бөлмелер.',
+    'Spacious rooms with upgraded bedding and extra seating.': 'Сапалы төсек-орны мен қосымша отыратын жері бар кең бөлмелер.',
+    'Suites with a separate lounge and space for longer stays.': 'Бөлек қонақ бөлмесі бар, ұзақ тұруға арналған люкстер.',
+    'Quiet single room overlooking the courtyard.': 'Аулаға қараған тыныш бір кісілік бөлме.',
+    'Queen room with blackout curtains and a courtyard view.': 'Үлкен төсегі, қалың пердесі бар, аулаға қараған бөлме.',
+    'Twin room with two single beds and a shared desk.': 'Екі бір кісілік төсегі және ортақ жұмыс үстелі бар бөлме.',
+    'King room with a reading chair and park-facing windows.': 'King-size төсегі, оқуға арналған креслосы бар, терезесі саябаққа қараған бөлме.',
+    'Deluxe twin room with a window bench and city views.': 'Екі төсегі, терезе жанындағы орындығы бар, қала көрінетін Делюкс бөлмесі.',
+    'Family room with a queen bed and a sofa bed.': 'Үлкен төсегі мен жайылатын диваны бар отбасылық бөлме.',
+    'Corner king suite with a lounge and wide park views.': 'King-size төсегі, қонақ бөлмесі бар, саябақтың кең көрінісі ашылатын бұрыштық люкс.',
+    'King suite with a dining nook and a single sofa bed.': 'King-size төсегі, ас ішетін бұрышы және бір жайылатын диваны бар люкс.',
+    'Family suite with a king bedroom and a twin bedroom.': 'Негізгі жатын бөлмесі мен екі төсекті жатын бөлмесі бар отбасылық люкс.',
+    'Wi-Fi': 'Wi-Fi', 'Work desk': 'Жұмыс үстелі', 'Shower': 'Душ', 'Tea station': 'Шай бұрышы',
+    'Mini fridge': 'Шағын тоңазытқыш', 'Smart TV': 'Смарт-ТВ', 'Bathrobes': 'Халаттар',
+    'Espresso machine': 'Кофе машинасы', 'Separate lounge': 'Бөлек қонақ бөлмесі', 'Bathtub': 'Ванна',
+  },
+};

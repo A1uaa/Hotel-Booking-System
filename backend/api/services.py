@@ -3,14 +3,14 @@ from decimal import ROUND_HALF_UP, Decimal
 from functools import wraps
 
 from django.core.exceptions import ValidationError as ModelValidationError
-from django.db import OperationalError, transaction
-from django.db.models import DecimalField, Exists, OuterRef, Subquery, Sum, Value
+from django.db import IntegrityError, OperationalError, transaction
+from django.db.models import Avg, Count, DecimalField, Exists, FloatField, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 
-from hotel.models import Booking, Payment, Room
+from hotel.models import Booking, Payment, Review, Room
 
 
 class Conflict(APIException):
@@ -265,3 +265,58 @@ def change_payment_status(pk, target, *, note, user):
     if target == Payment.Status.PAID:
         _confirm(booking)
     return payment
+
+
+# ---------------------------------------------------------------------------
+# Reviews: feedback on a room, open to everyone
+# ---------------------------------------------------------------------------
+
+def with_ratings(rooms):
+    """Annotate rooms with the average and count of their visible reviews, so lists need no query per room."""
+    visible = Review.objects.filter(room=OuterRef("pk"), is_hidden=False).order_by().values("room")
+    return rooms.annotate(
+        rating_average=Subquery(visible.annotate(value=Avg("rating")).values("value"), output_field=FloatField()),
+        rating_count=Coalesce(
+            Subquery(visible.annotate(value=Count("pk")).values("value"), output_field=IntegerField()),
+            Value(0), output_field=IntegerField(),
+        ),
+    )
+
+
+def round_average(value):
+    return round(float(value), 1) if value is not None else None
+
+
+@transaction.atomic
+def create_review(room, user, *, rating, comment="", name=""):
+    """Anyone can rate a room. `user` is None for a visitor without an account.
+
+    A signed-in user can review a room once. The shown name is the one typed in, else the account's
+    first name, else "Guest"; the email is never stored on the review or exposed.
+    """
+    author = name.strip() or (user.first_name.strip() if user else "") or "Guest"
+    if user and Review.objects.filter(room=room, user=user).exists():
+        raise Conflict("You have already left feedback for this room.")
+    review = Review(room=room, user=user, author_name=author[:80], rating=rating, comment=comment.strip())
+    try:
+        with transaction.atomic():
+            review.save()
+    except IntegrityError as exc:
+        raise Conflict("You have already left feedback for this room.") from exc
+    return review
+
+
+def room_reviews(room, limit=50):
+    """Visible reviews of a room: the newest `limit`, plus count, average and the number of each star rating."""
+    visible = Review.objects.filter(room=room, is_hidden=False)
+    stats = visible.aggregate(
+        count=Count("pk"), average=Avg("rating"),
+        **{f"star_{star}": Count("pk", filter=Q(rating=star)) for star in range(1, 6)},
+    )
+    rows = visible.order_by("-created_at", "-pk")[:limit]
+    summary = {
+        "count": stats["count"],
+        "average": round_average(stats["average"]),
+        "breakdown": {str(star): stats[f"star_{star}"] for star in range(1, 6)},
+    }
+    return summary, rows

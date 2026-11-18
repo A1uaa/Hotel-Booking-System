@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from hotel.models import Booking, Payment, Room, RoomImage, RoomType
+from hotel.models import Booking, Payment, Review, Room, RoomImage, RoomType
 from .serializers import PaymentSummaryMixin, RoomImageSerializer
 
 User = get_user_model()
@@ -110,3 +110,17 @@ class ChangePaymentStatus(serializers.Serializer):
         (Payment.Status.PAID, "Paid"), (Payment.Status.REFUNDED, "Refunded"), (Payment.Status.CANCELLED, "Cancelled"),
     ])
     note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class ManagedReviewSerializer(serializers.ModelSerializer):
+    # Visitors can review without an account, so `guest` is null for them.
+    guest = GuestSerializer(source="user", read_only=True, allow_null=True)
+    room_number = serializers.CharField(source="room.room_number")
+
+    class Meta:
+        model = Review
+        fields = ("id", "room", "room_number", "author_name", "guest", "rating", "comment", "is_hidden", "created_at")
+
+
+class ChangeReviewVisibility(serializers.Serializer):
+    hidden = serializers.BooleanField()

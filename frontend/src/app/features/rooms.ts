@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { BehaviorSubject, catchError, combineLatest, map, of, switchMap } from 'rxjs';
 import { apiError, HotelApi, Room, RoomFilters, RoomType } from '../core/api';
+import { ContentPipe, TranslatePipe } from '../core/i18n';
 import { RoomCard } from '../shared/room-card';
 import { hotelToday, stayDates } from '../shared/stay';
 
@@ -20,7 +21,7 @@ export function readFilters(params: ParamMap): RoomFilters {
   return filters;
 }
 
-@Component({ imports: [ReactiveFormsModule, RoomCard], templateUrl: './rooms.html' })
+@Component({ imports: [ReactiveFormsModule, RoomCard, TranslatePipe, ContentPipe], templateUrl: './rooms.html' })
 export class Rooms {
   private readonly api = inject(HotelApi);
   private readonly route = inject(ActivatedRoute);

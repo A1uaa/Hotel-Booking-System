@@ -2,11 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { apiError, HotelApi, Room, RoomFilters } from '../core/api';
+import { TranslatePipe } from '../core/i18n';
 import { RoomCard } from '../shared/room-card';
 import { StaySearch } from '../shared/search';
 
 @Component({
-  imports: [RouterLink, StaySearch, RoomCard],
+  imports: [RouterLink, StaySearch, RoomCard, TranslatePipe],
   templateUrl: './home.html',
 })
 export class Home {

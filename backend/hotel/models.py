@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -146,6 +146,36 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.pk} for booking {self.booking_id}"
+
+
+class Review(models.Model):
+    """Feedback on a room: 1-5 stars and an optional comment.
+
+    Anyone may leave one, with or without an account, and without a booking. A signed-in user can
+    review a room once. A hidden review stays stored but is not shown on the site or counted.
+    """
+
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="reviews")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviews",
+    )
+    author_name = models.CharField(max_length=80, default="Guest")
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(max_length=2000, blank=True, default="")
+    is_hidden = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(rating__gte=1, rating__lte=5), name="review_rating_between_1_and_5"),
+            models.UniqueConstraint(
+                fields=["room", "user"], condition=models.Q(user__isnull=False), name="one_review_per_user_per_room",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Review {self.pk} of {self.room}"
 
 
 class ContactMessage(models.Model):

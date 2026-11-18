@@ -1,19 +1,20 @@
 import { Component, input, output } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RoomFilters } from '../core/api';
+import { TranslatePipe } from '../core/i18n';
 import { hotelToday, stayDates } from './stay';
 
 @Component({
   selector: 'app-stay-search',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TranslatePipe],
   template: `
     <form class="stay-search" [formGroup]="form" (ngSubmit)="submit()">
-      <label>Check-in<input type="date" formControlName="check_in" [min]="today()" /></label>
-      <label>Check-out<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" /></label>
-      <label>Guests<input type="number" formControlName="guests" min="1" max="32767" /></label>
-      <button class="button" type="submit">Find a room <span aria-hidden="true">↗</span></button>
+      <label>{{ 'common.checkin' | t }}<input type="date" formControlName="check_in" [min]="today()" /></label>
+      <label>{{ 'common.checkout' | t }}<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" /></label>
+      <label>{{ 'common.guests' | t }}<input type="number" formControlName="guests" min="1" max="32767" /></label>
+      <button class="button" type="submit">{{ 'search.find' | t }} <span aria-hidden="true">↗</span></button>
       @if (form.invalid && attempted) {
-        <p class="notice error" role="alert">Enter a valid guest count and both dates, with checkout after check-in.</p>
+        <p class="notice error" role="alert">{{ 'search.error' | t }}</p>
       }
     </form>
   `,

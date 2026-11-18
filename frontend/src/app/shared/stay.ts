@@ -1,4 +1,5 @@
 import { AbstractControl } from '@angular/forms';
+import { language, LOCALES, translate } from '../core/i18n';
 
 export function hotelToday(): string {
   const parts = new Intl.DateTimeFormat('en', {
@@ -21,9 +22,12 @@ export function nights(start: string, end: string) {
 }
 
 export function money(value: string | number): string {
-  return new Intl.NumberFormat('en-KZ', { maximumFractionDigits: 2 }).format(Number(value)) + ' ₸';
+  return new Intl.NumberFormat(LOCALES[language()], { maximumFractionDigits: 2 }).format(Number(value)) + ' ₸';
 }
 
 export function statusLabel(value: string): string {
-  return value.replaceAll('_', ' ');
+  const key = 'st.' + value;
+  const text = translate(key);
+  // A status that has no translation is shown as the server sent it.
+  return text === key ? value.replaceAll('_', ' ') : text;
 }

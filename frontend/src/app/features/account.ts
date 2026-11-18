@@ -4,8 +4,9 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiError, HotelApi } from '../core/api';
 import { Auth, safeReturnUrl } from '../core/auth';
+import { TranslatePipe } from '../core/i18n';
 
-@Component({ imports: [ReactiveFormsModule, RouterLink], templateUrl: './account.html' })
+@Component({ imports: [ReactiveFormsModule, RouterLink, TranslatePipe], templateUrl: './account.html' })
 export class AccountPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

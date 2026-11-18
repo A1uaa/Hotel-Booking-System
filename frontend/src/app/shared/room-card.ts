@@ -1,25 +1,30 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Room, RoomFilters } from '../core/api';
+import { ContentPipe, TranslatePipe } from '../core/i18n';
 import { imageFallback, roomPhotosFor } from './photos';
+import { Stars } from './stars';
 import { money } from './stay';
 
 @Component({
   selector: 'app-room-card',
-  imports: [RouterLink],
+  imports: [RouterLink, Stars, TranslatePipe, ContentPipe],
   template: `
     <article class="room-card">
-      <a class="card-image" [routerLink]="['/rooms', room().id]" [queryParams]="stay()" [attr.aria-label]="'View ' + room().room_type.name + ' ' + room().room_number">
-        <img [src]="photo()" (error)="fallback($event)" loading="lazy" [alt]="room().room_type.name" />
+      <a class="card-image" [routerLink]="['/rooms', room().id]" [queryParams]="stay()" [attr.aria-label]="'card.viewAria' | t: { name: (room().room_type.name | content), number: room().room_number }">
+        <img [src]="photo()" (error)="fallback($event)" loading="lazy" [alt]="room().room_type.name | content" />
       </a>
       <div class="card-body">
-        <p class="eyebrow">Room {{ room().room_number }} · Up to {{ room().capacity }} {{ room().capacity === 1 ? 'guest' : 'guests' }}</p>
-        <h3>{{ room().room_type.name }}</h3>
-        <p>{{ room().description }}</p>
-        <ul class="tags">@for (amenity of room().amenities; track $index) { <li>{{ amenity }}</li> }</ul>
+        <p class="eyebrow">{{ 'common.room' | t: { number: room().room_number } }} · {{ 'common.upTo' | t: { count: room().capacity } }}</p>
+        <h3>{{ room().room_type.name | content }}</h3>
+        @if (room().rating_count) {
+          <p class="room-rating"><app-stars [value]="room().rating_average ?? 0" /> <strong>{{ room().rating_average }}</strong> <small class="muted">({{ 'reviews.count' | t: { count: room().rating_count ?? 0 } }})</small></p>
+        } @else { <p class="room-rating muted"><small>{{ 'reviews.none' | t }}</small></p> }
+        <p>{{ room().description | content }}</p>
+        <ul class="tags">@for (amenity of room().amenities; track $index) { <li>{{ amenity | content }}</li> }</ul>
         <div class="card-bottom">
-          <span><strong>{{ money(room().price_per_night) }}</strong><small> / night</small></span>
-          <a class="text-link" [routerLink]="['/rooms', room().id]" [queryParams]="stay()">View room <span aria-hidden="true">↗</span></a>
+          <span><strong>{{ money(room().price_per_night) }}</strong><small> {{ 'common.night' | t }}</small></span>
+          <a class="text-link" [routerLink]="['/rooms', room().id]" [queryParams]="stay()">{{ 'card.viewRoom' | t }} <span aria-hidden="true">↗</span></a>
         </div>
       </div>
     </article>

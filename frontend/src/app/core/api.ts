@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, InjectionToken } from '@angular/core';
 import { switchMap } from 'rxjs';
+import { translate } from './i18n';
 
 export interface Account { id: number; email: string; role: 'Guest' | 'Admin'; }
 export interface Credentials { email: string; password: string; }
@@ -10,8 +11,16 @@ export interface Room {
   id: number; room_number: string; room_type: RoomType; description: string;
   price_per_night: string; capacity: number; amenities: string[]; images: RoomImage[];
   available: boolean;
+  // Average (one decimal) and number of visible reviews; the API always sends them.
+  rating_average?: number | null; rating_count?: number;
 }
 export interface Stay { check_in: string; check_out: string; }
+export interface Review { id: number; rating: number; comment: string; author: string; created_at: string; }
+// `breakdown` maps each star rating "1".."5" to how many reviews gave it.
+export interface RoomReviews {
+  room: number; count: number; average: number | null; breakdown: Record<string, number>; reviews: Review[];
+}
+export interface ReviewInput { rating: number; comment: string; name: string; }
 export interface RoomAvailability { room: number; bookable: boolean; booked: Stay[]; }
 export interface RoomFilters extends Partial<Stay> {
   guests?: number; room_type?: number; min_price?: number; max_price?: number;
@@ -53,6 +62,11 @@ export class HotelApi {
   rooms(filters: RoomFilters = {}) { return this.get<Room[]>('rooms/', { ...filters }); }
   room(id: number, dates: Partial<Stay> = {}) { return this.get<Room>('rooms/' + id + '/', { ...dates }); }
   availability(id: number) { return this.get<RoomAvailability>('rooms/' + id + '/availability/'); }
+  roomReviews(id: number) { return this.get<RoomReviews>('rooms/' + id + '/reviews/'); }
+  // Anyone can leave feedback on a room; the reply is the refreshed review list plus the new review.
+  addReview(id: number, data: ReviewInput) {
+    return this.post<RoomReviews & { review: Review }>('rooms/' + id + '/reviews/', data);
+  }
   bookings() { return this.get<Booking[]>('bookings/'); }
   booking(id: number) { return this.get<Booking>('bookings/' + id + '/'); }
   book(data: BookingInput) { return this.post<Booking>('bookings/', data); }
@@ -82,8 +96,8 @@ export class HotelApi {
 }
 
 export function apiError(error: unknown): string {
-  if (!(error instanceof HttpErrorResponse)) return 'Something went wrong. Please try again.';
-  if (error.status === 0) return 'Could not reach the hotel server. Check your connection and try again.';
+  if (!(error instanceof HttpErrorResponse)) return translate('err.generic');
+  if (error.status === 0) return translate('err.network');
   const body: unknown = error.error;
   if (body && typeof body === 'object') {
     const messages = Object.entries(body).flatMap(([key, value]) => {
@@ -94,5 +108,5 @@ export function apiError(error: unknown): string {
     });
     if (messages.length) return messages.join(' ');
   }
-  return 'The request could not be completed. Please try again.';
+  return translate('err.failed');
 }

@@ -13,6 +13,7 @@ const capabilities: Capabilities = {
   dashboard: true, rooms: true, addRoom: true, changeRoom: true, deleteRoom: true,
   addPhoto: true, changePhoto: true, deletePhoto: true, reservations: true, changeBooking: true,
   guests: true, reports: true, payments: true, recordPayment: true, changePayment: true,
+  reviews: true, moderateReviews: true,
 };
 const session: AdminSession = {
   account: { id: 1, email: 'manager@example.test', role: 'Admin' }, capabilities,
@@ -106,5 +107,21 @@ describe('Admin API client', () => {
     expect(action.request.method).toBe('POST');
     expect(action.request.headers.get('X-CSRFToken')).toBe('desk-token');
     action.flush({ id: 15, status: 'checked_in' });
+  });
+
+  it('lists reviews with filters and hides one through the visibility endpoint', () => {
+    api.reviews({ q: '', visibility: 'visible', rating: '2' }).subscribe();
+    const list = http.expectOne(request => request.url === '/api/admin/reviews/');
+    expect(list.request.params.get('visibility')).toBe('visible');
+    expect(list.request.params.get('rating')).toBe('2');
+    list.flush([]);
+
+    api.setReviewHidden(5, true).subscribe();
+    http.expectOne('/api/auth/csrf/').flush({ csrf_token: 'review-token' });
+    const hide = http.expectOne('/api/admin/reviews/5/visibility/');
+    expect(hide.request.method).toBe('POST');
+    expect(hide.request.body).toEqual({ hidden: true });
+    expect(hide.request.headers.get('X-CSRFToken')).toBe('review-token');
+    hide.flush({ id: 5, is_hidden: true });
   });
 });

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Booking, ContactMessage, Payment, Room, RoomImage, RoomType
+from .models import Booking, ContactMessage, Payment, Review, Room, RoomImage, RoomType
 
 
 @admin.register(RoomType)
@@ -41,6 +41,14 @@ class PaymentAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Payments are financial records: refund or cancel them instead of deleting.
         return False
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "room", "author_name", "rating", "is_hidden", "created_at")
+    search_fields = ("room__room_number", "author_name", "comment", "user__email")
+    list_filter = ("rating", "is_hidden", "created_at")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(ContactMessage)
