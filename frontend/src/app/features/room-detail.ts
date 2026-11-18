@@ -1,15 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, map, of, switchMap } from 'rxjs';
-import { apiError, BookingInput, HotelApi, Room } from '../core/api';
+import { apiError, BookingInput, HotelApi, Room, RoomAvailability } from '../core/api';
 import { Auth } from '../core/auth';
+import { AvailabilityCalendar, CalendarPick } from '../shared/availability-calendar';
 import { imageFallback, roomPhotosFor } from '../shared/photos';
 import { hotelToday, money, nights, stayDates } from '../shared/stay';
 
-@Component({ imports: [ReactiveFormsModule, RouterLink], templateUrl: './room-detail.html' })
+@Component({ imports: [ReactiveFormsModule, RouterLink, AvailabilityCalendar], templateUrl: './room-detail.html' })
 export class RoomDetail {
   private readonly api = inject(HotelApi);
   private readonly auth = inject(Auth);
@@ -17,6 +18,7 @@ export class RoomDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly destroy = inject(DestroyRef);
   readonly room = signal<Room | null>(null);
+  readonly availability = signal<RoomAvailability | null>(null);
   readonly loading = signal(true);
   readonly loadError = signal('');
   readonly error = signal('');
@@ -34,12 +36,14 @@ export class RoomDetail {
     check_out: new FormControl('', { nonNullable: true, validators: Validators.required }),
     guest_count: new FormControl<number | null>(1, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]),
   }, stayDates);
+  readonly stay = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
   constructor() {
     this.route.paramMap.pipe(
       switchMap(params => {
         this.loading.set(true);
         this.room.set(null);
+        this.availability.set(null);
         this.loadError.set('');
         this.error.set('');
         this.review.set(null);
@@ -61,6 +65,16 @@ export class RoomDetail {
       this.loadError.set(error);
       this.loading.set(false);
     });
+    // The calendar is optional: if it cannot load, the date fields still work.
+    this.route.paramMap.pipe(
+      switchMap(params => this.api.availability(Number(params.get('id'))).pipe(catchError(() => of(null)))),
+      takeUntilDestroyed(),
+    ).subscribe(availability => this.availability.set(availability));
+  }
+
+  pickDates(pick: CalendarPick) {
+    this.error.set('');
+    this.form.patchValue(pick);
   }
 
   estimate(room: Room) {
@@ -103,7 +117,7 @@ export class RoomDetail {
     this.busy.set(true);
     this.error.set('');
     this.api.book(input).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-      next: booking => void this.router.navigate(['/bookings', booking.id, 'confirmation']),
+      next: booking => void this.router.navigate(['/bookings', booking.id, 'payment']),
       error: error => {
         this.busy.set(false);
         if (error instanceof HttpErrorResponse && error.status === 403 && !String(error.error?.detail).includes('CSRF')) {

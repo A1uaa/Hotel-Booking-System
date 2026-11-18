@@ -147,3 +147,12 @@
   .staff-login-visual { min-height: 150px; }
   .staff-fields { grid-template-columns: 1fr; }
 }
+
+/* Payments */
+.staff-frame .badge[data-status='paid'] { background: #e0eadb; color: #274c36; }
+.staff-frame .badge[data-status='partial'], .staff-frame .badge[data-status='pay_at_hotel'] { background: #f5ead3; color: #654a21; }
+.staff-frame .badge[data-status='failed'], .staff-frame .badge[data-status='refunded'] { background: #f3e3dd; color: #7c3c31; }
+.staff-frame .badge[data-status='unpaid'] { background: #ebe8e0; color: #4c514b; }
+.staff-subheading { font-size: 1.15rem; margin: 1.2rem 0 .5rem; }
+.staff-inline-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-top: .75rem; }
+.staff-inline-form label { flex: 1 1 140px; }

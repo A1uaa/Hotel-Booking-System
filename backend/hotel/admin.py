@@ -33,9 +33,14 @@ class BookingAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("id", "booking", "amount", "payment_method", "status", "created_at")
-    search_fields = ("=booking__id", "payment_method")
-    list_filter = ("status", "payment_method", "created_at")
+    list_display = ("id", "booking", "amount", "method", "payment_method", "status", "paid_at", "created_at")
+    search_fields = ("=booking__id", "payment_method", "note")
+    list_filter = ("status", "method", "created_at")
+    readonly_fields = ("created_at", "updated_at", "paid_at", "recorded_by")
+
+    def has_delete_permission(self, request, obj=None):
+        # Payments are financial records: refund or cancel them instead of deleting.
+        return False
 
 
 @admin.register(ContactMessage)

@@ -16,10 +16,15 @@
           <p class="eyebrow">Reservation #{{ booking.id }}</p>
           <h2>{{ rooms()[booking.room]?.room_type?.name || 'Room reservation' }}</h2>
           @if (rooms()[booking.room]; as room) { <a class="text-link" [routerLink]="['/rooms', room.id]">Room {{ room.room_number }} ↗</a> }
-          <dl class="facts"><dt>Check-in</dt><dd>{{ booking.check_in }}</dd><dt>Check-out</dt><dd>{{ booking.check_out }}</dd><dt>Guests</dt><dd>{{ booking.guest_count }}</dd><dt>Total</dt><dd>{{ money(booking.total_price) }}</dd></dl>
+          <dl class="facts"><dt>Check-in</dt><dd>{{ booking.check_in }}</dd><dt>Check-out</dt><dd>{{ booking.check_out }}</dd><dt>Guests</dt><dd>{{ booking.guest_count }}</dd><dt>Total</dt><dd>{{ money(booking.total_price) }}</dd>
+            @if (booking.status !== 'cancelled' && booking.paid_amount && booking.paid_amount !== '0.00') { <dt>Paid</dt><dd>{{ money(booking.paid_amount) }}</dd> }
+            @if (booking.status !== 'cancelled' && booking.balance_due && booking.balance_due !== '0.00') { <dt>Balance</dt><dd>{{ money(booking.balance_due) }}</dd> }</dl>
         </div>
         <div class="booking-actions">
           <span class="badge" [class.cancelled]="booking.status === 'cancelled'">{{ label(booking.status) }}</span>
+          @if (booking.payment_status && booking.payment_status !== 'unpaid') { <span class="badge payment-badge" [attr.data-payment]="booking.payment_status">{{ label(booking.payment_status) }}</span> }
+          @if (booking.status === 'pending') { <a class="button" [routerLink]="['/bookings', booking.id, 'payment']">Pay now</a> }
+          @else if (booking.status === 'confirmed' && booking.payment_status !== 'paid') { <a class="button outline" [routerLink]="['/bookings', booking.id, 'payment']">Pay balance</a> }
           @if (booking.status === 'pending' || booking.status === 'confirmed') {
             @if (selected() === booking.id) {
               <p>Cancel this reservation?</p>

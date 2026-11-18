@@ -16,6 +16,7 @@ const customerRoutes: Routes = [
   { path: 'login', title: 'Log In | Koktem Park Hotel', loadComponent: () => import('./features/account').then(m => m.AccountPage) },
   { path: 'register', title: 'Register | Koktem Park Hotel', data: { register: true }, loadComponent: () => import('./features/account').then(m => m.AccountPage) },
   { path: 'bookings', title: 'My Bookings | Koktem Park Hotel', canActivate: [requireSession], loadComponent: () => import('./features/bookings').then(m => m.Bookings) },
+  { path: 'bookings/:id/payment', title: 'Payment | Koktem Park Hotel', canActivate: [requireSession], loadComponent: () => import('./features/payment').then(m => m.PaymentPage) },
   { path: 'bookings/:id/confirmation', title: 'Reservation | Koktem Park Hotel', canActivate: [requireSession], loadComponent: () => import('./features/confirmation').then(m => m.Confirmation) },
   { path: 'contact', title: 'Contact | Koktem Park Hotel', loadComponent: () => import('./features/contact').then(m => m.Contact) },
   { path: '**', title: 'Page Not Found | Koktem Park Hotel', component: NotFound },

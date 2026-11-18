@@ -137,4 +137,5 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['api.authentication.CsrfSessionAuthentication'],
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+    'DEFAULT_THROTTLE_RATES': {'payments': '20/min'},
 }

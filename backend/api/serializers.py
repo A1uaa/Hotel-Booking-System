@@ -1,3 +1,4 @@
+import re
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
@@ -5,7 +6,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from rest_framework import serializers
 
-from hotel.models import Booking, ContactMessage, Room, RoomImage, RoomType
+from hotel.models import Booking, ContactMessage, Payment, Room, RoomImage, RoomType
+
+from .services import payment_summary
 
 User = get_user_model()
 
@@ -101,7 +104,19 @@ class BookingInputSerializer(StaySerializer):
     guest_count = serializers.IntegerField(min_value=1, max_value=32767)
 
 
-class BookingSerializer(serializers.ModelSerializer):
+class PaymentSummaryMixin:
+    """Adds the booking's money position (paid, balance, guest-facing payment state)."""
+
+    def to_representation(self, booking):
+        data = super().to_representation(booking)
+        summary = payment_summary(booking)
+        for key in ("paid_amount", "balance_due", "prepayment_amount"):
+            data[key] = f"{summary[key]:.2f}"
+        data["payment_status"] = summary["payment_status"]
+        return data
+
+
+class BookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = (
@@ -116,3 +131,54 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
         fields = ("name", "email", "subject", "message")
+
+
+def luhn_valid(digits):
+    total = 0
+    for index, char in enumerate(reversed(digits)):
+        value = int(char)
+        if index % 2:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return total % 10 == 0
+
+
+class PaymentInputSerializer(serializers.Serializer):
+    """`method` picks card, prepayment (deposit by card) or cash (pay at the hotel)."""
+
+    CARD_FIELDS = ("card_holder", "card_number", "expiry", "cvv")
+
+    method = serializers.ChoiceField(choices=Payment.Method.choices, default=Payment.Method.CARD)
+    card_holder = serializers.CharField(max_length=100, required=False)
+    card_number = serializers.CharField(max_length=23, required=False)
+    expiry = serializers.RegexField(r"^(0[1-9]|1[0-2])/\d{2}$", required=False, error_messages={"invalid": "Use the format MM/YY."})
+    cvv = serializers.RegexField(r"^\d{3,4}$", required=False, error_messages={"invalid": "Enter the 3 or 4 digit security code."})
+
+    def validate_card_number(self, value):
+        digits = re.sub(r"[ -]", "", value)
+        if not digits.isdigit() or not 13 <= len(digits) <= 19 or not luhn_valid(digits):
+            raise serializers.ValidationError("Enter a valid card number.")
+        return digits
+
+    def validate(self, attrs):
+        method = attrs["method"]
+        if method == Payment.Method.CASH:
+            # Cash needs no card details; anything sent is dropped here and never stored.
+            return {"method": method}
+        missing = {name: "This field is required." for name in self.CARD_FIELDS if not attrs.get(name)}
+        if missing:
+            raise serializers.ValidationError(missing)
+        month, year = int(attrs["expiry"][:2]), 2000 + int(attrs["expiry"][3:])
+        today = timezone.localdate()
+        if (year, month) < (today.year, today.month):
+            raise serializers.ValidationError({"expiry": "This card has expired."})
+        # Only the method and card number leave validation; expiry and CVV are never kept.
+        return {"method": method, "card_number": attrs["card_number"]}
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ("id", "booking", "amount", "method", "payment_method", "status", "paid_at", "created_at")

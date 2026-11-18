@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { Account, Booking, Credentials, HotelApi, RoomImage, RoomType } from '../../core/api';
+import {
+  Account, Booking, Credentials, HotelApi, PaymentMethod, PaymentState, PaymentStatus, RoomImage, RoomType,
+} from '../../core/api';
 
 export type RoomStatus = 'available' | 'maintenance' | 'out_of_service';
 export interface RoomInput {
@@ -10,21 +12,33 @@ export interface ManagedRoom extends RoomInput {
   id: number; room_type_name: string; images: RoomImage[]; has_history: boolean;
 }
 export interface Guest { id: number; name: string; email: string; date_joined: string; }
-export interface Reservation extends Booking { guest: Guest; room_number: string; room_type: string; }
+export interface Reservation extends Booking {
+  guest: Guest; room_number: string; room_type: string; payment_status?: PaymentState;
+}
 export type Capabilities = Record<
   'dashboard' | 'rooms' | 'addRoom' | 'changeRoom' | 'deleteRoom' | 'addPhoto' |
-  'changePhoto' | 'deletePhoto' | 'reservations' | 'changeBooking' | 'guests' | 'reports', boolean
+  'changePhoto' | 'deletePhoto' | 'reservations' | 'changeBooking' | 'guests' | 'reports' |
+  'payments' | 'recordPayment' | 'changePayment', boolean
 >;
 export interface AdminSession { account: Account; capabilities: Capabilities; }
 export interface Dashboard {
   date: string; total_rooms: number; available_rooms: number; occupied_rooms: number;
   arrivals: number; departures: number; active_reservations: number; revenue: string;
+  pending_payments?: number; pending_amount?: string;
 }
+export interface ManagedPayment {
+  id: number; booking: number; guest: Guest; room_number: string; booking_status: Booking['status'];
+  booking_total: string; amount: string; method: PaymentMethod; payment_method: string;
+  status: PaymentStatus; note: string; recorded_by_email: string; paid_at: string | null; created_at: string;
+}
+export interface PaymentFilters { q: string; status: string; method: string; date: string; }
+export interface RecordPaymentInput { method: PaymentMethod; amount: string; note: string; }
 export interface FrontDesk { date: string; arrivals: Reservation[]; departures: Reservation[]; }
 export interface HotelReport {
   start: string; end: string; bookings: number; by_status: Record<Booking['status'], number>;
   occupied_nights: number; capacity_nights: number; occupancy_percent: number; revenue: string;
   popular_room_types: { name: string; bookings: number }[];
+  revenue_by_method?: Record<PaymentMethod, string>; refunded?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -63,6 +77,14 @@ export class AdminApi {
   frontDesk() { return this.api.get<FrontDesk>('admin/front-desk/'); }
   deskAction(id: number, action: 'check-in' | 'check-out') {
     return this.api.post<Reservation>('admin/front-desk/' + id + '/' + action + '/', {});
+  }
+  payments(filters: PaymentFilters) { return this.api.get<ManagedPayment[]>('admin/payments/', { ...filters }); }
+  changePayment(id: number, status: 'paid' | 'refunded' | 'cancelled', note = '') {
+    return this.api.post<ManagedPayment>('admin/payments/' + id + '/status/', { status, note });
+  }
+  reservationPayments(id: number) { return this.api.get<ManagedPayment[]>('admin/reservations/' + id + '/payments/'); }
+  recordPayment(id: number, data: RecordPaymentInput) {
+    return this.api.post<ManagedPayment>('admin/reservations/' + id + '/payments/', data);
   }
   reports(start: string, end: string) { return this.api.get<HotelReport>('admin/reports/', { start, end }); }
 }

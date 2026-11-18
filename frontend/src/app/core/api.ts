@@ -12,13 +12,28 @@ export interface Room {
   available: boolean;
 }
 export interface Stay { check_in: string; check_out: string; }
+export interface RoomAvailability { room: number; bookable: boolean; booked: Stay[]; }
 export interface RoomFilters extends Partial<Stay> {
   guests?: number; room_type?: number; min_price?: number; max_price?: number;
 }
 export interface BookingInput extends Stay { room: number; guest_count: number; }
+export type PaymentState = 'unpaid' | 'partial' | 'pay_at_hotel' | 'paid' | 'refunded';
 export interface Booking extends BookingInput {
   id: number; price_per_night: string; total_price: string; created_at: string; updated_at: string;
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
+  // Money position, always sent by the API.
+  paid_amount?: string; balance_due?: string; prepayment_amount?: string;
+  payment_status?: PaymentState;
+}
+export type PaymentMethod = 'card' | 'prepayment' | 'cash';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+// Card fields are required for card and prepayment, and ignored for cash (pay at the hotel).
+export interface PaymentInput {
+  method: PaymentMethod; card_holder?: string; card_number?: string; expiry?: string; cvv?: string;
+}
+export interface Payment {
+  id: number; booking: number; amount: string; method: PaymentMethod; payment_method: string;
+  created_at: string; paid_at: string | null; status: PaymentStatus;
 }
 export interface ContactInput { name: string; email: string; subject: string; message: string; }
 
@@ -37,10 +52,15 @@ export class HotelApi {
   logout() { return this.post<void>('auth/logout/', {}); }
   rooms(filters: RoomFilters = {}) { return this.get<Room[]>('rooms/', { ...filters }); }
   room(id: number, dates: Partial<Stay> = {}) { return this.get<Room>('rooms/' + id + '/', { ...dates }); }
+  availability(id: number) { return this.get<RoomAvailability>('rooms/' + id + '/availability/'); }
   bookings() { return this.get<Booking[]>('bookings/'); }
   booking(id: number) { return this.get<Booking>('bookings/' + id + '/'); }
   book(data: BookingInput) { return this.post<Booking>('bookings/', data); }
   cancel(id: number) { return this.post<Booking>('bookings/' + id + '/cancel/', {}); }
+  payments(id: number) { return this.get<Payment[]>('bookings/' + id + '/payments/'); }
+  pay(id: number, data: PaymentInput) {
+    return this.post<{ payment: Payment; booking: Booking }>('bookings/' + id + '/pay/', data);
+  }
   contact(data: ContactInput) { return this.post<{ id: number }>('contact/', data); }
 
   get<T>(path: string, params: Record<string, string | number> = {}) {

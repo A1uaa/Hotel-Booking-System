@@ -4,19 +4,24 @@ from django.db import transaction
 from django.db.models import BooleanField, Exists, OuterRef, Value
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, permission_classes
+from django.utils import timezone
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from hotel.models import Booking, Room
+from hotel.models import Booking, Payment, Room
 
 from .authentication import authenticate_email
 from .serializers import (
     BookingInputSerializer, BookingSerializer, ContactSerializer,
-    RegistrationSerializer, RoomFilterSerializer,
+    PaymentInputSerializer, PaymentSerializer, RegistrationSerializer, RoomFilterSerializer,
     RoomSerializer, User, UserSerializer,
 )
-from .services import Conflict, cancel_booking, create_booking, handle_database_contention
+from .services import (
+    Conflict, cancel_booking, create_booking, handle_database_contention, pay_booking, with_payment_totals,
+)
+from .throttles import PaymentThrottle
 
 
 @api_view(["GET"])
@@ -104,12 +109,34 @@ def room_detail(request, pk):
     return Response(RoomSerializer(room, context={"request": request}).data)
 
 
+@api_view(["GET"])
+def room_availability(request, pk):
+    """Occupied date ranges for the room calendar.
+
+    Each range is a stay: `check_in` is the first occupied night and `check_out` is the
+    morning the room is free again, so a new guest may check in on another stay's `check_out`.
+    Only dates are exposed, never who booked. Cancelled and finished stays are left out.
+    """
+    room = get_object_or_404(Room, pk=pk)
+    booked = (
+        Booking.objects.filter(room=room, check_out__gt=timezone.localdate())
+        .exclude(status=Booking.Status.CANCELLED)
+        .order_by("check_in", "pk")
+        .values("check_in", "check_out")
+    )
+    return Response({
+        "room": room.pk,
+        "bookable": room.status == Room.Status.AVAILABLE,
+        "booked": list(booked),
+    })
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 @handle_database_contention
 def bookings(request):
     if request.method == "GET":
-        owned = Booking.objects.filter(user=request.user).order_by("-created_at", "-pk")
+        owned = with_payment_totals(Booking.objects.filter(user=request.user)).order_by("-created_at", "-pk")
         return Response(BookingSerializer(owned, many=True).data)
     serializer = BookingInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -120,7 +147,7 @@ def bookings(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def booking_detail(request, pk):
-    booking = get_object_or_404(Booking, pk=pk, user=request.user)
+    booking = get_object_or_404(with_payment_totals(Booking.objects.filter(user=request.user)), pk=pk)
     return Response(BookingSerializer(booking).data)
 
 
@@ -130,6 +157,34 @@ def booking_detail(request, pk):
 def booking_cancel(request, pk):
     booking = cancel_booking(Booking.objects.filter(user=request.user), pk)
     return Response(BookingSerializer(booking).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def booking_payments(request, pk):
+    booking = get_object_or_404(Booking, pk=pk, user=request.user)
+    payments = Payment.objects.filter(booking=booking).order_by("-created_at", "-pk")
+    return Response(PaymentSerializer(payments, many=True).data)
+
+
+@api_view(["POST"])
+@parser_classes([JSONParser])
+@throttle_classes([PaymentThrottle])
+@permission_classes([IsAuthenticated])
+@handle_database_contention
+def booking_pay(request, pk):
+    serializer = PaymentInputSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payment = pay_booking(Booking.objects.filter(user=request.user), pk, **serializer.validated_data)
+    if payment.status == Payment.Status.FAILED:
+        response = Response({"detail": "Your card was declined. Try a different card."}, status=402)
+    else:
+        booking = with_payment_totals(Booking.objects.filter(pk=pk)).get()
+        response = Response(
+            {"payment": PaymentSerializer(payment).data, "booking": BookingSerializer(booking).data}, status=201,
+        )
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @api_view(["POST"])

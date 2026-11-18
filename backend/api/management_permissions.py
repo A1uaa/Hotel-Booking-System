@@ -38,4 +38,7 @@ def capabilities(user):
         "changeBooking": allowed(user, "view_booking", "change_booking"),
         "guests": allowed(user, "view_booking", "auth.view_user"),
         "reports": allowed(user, "view_room", "view_booking", "view_payment"),
+        "payments": allowed(user, "view_booking", "view_payment"),
+        "recordPayment": allowed(user, "view_booking", "view_payment", "add_payment"),
+        "changePayment": allowed(user, "view_booking", "view_payment", "change_payment"),
     }

@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
-import { API_BASE, Booking, Room } from '../core/api';
+import { API_BASE, Booking, Room, RoomAvailability } from '../core/api';
 import { Auth } from '../core/auth';
 import { hotelToday } from '../shared/stay';
 import { Bookings } from './bookings';
@@ -15,6 +15,7 @@ const room: Room = {
   description: 'Twin room', price_per_night: '29000.00', capacity: 2,
   amenities: ['Wi-Fi'], images: [], available: true,
 };
+const availability: RoomAvailability = { room: 3, bookable: true, booked: [] };
 const start = hotelToday();
 const end = new Date(Date.parse(start) + 2 * 86_400_000).toISOString().slice(0, 10);
 const booking: Booking = {
@@ -73,6 +74,7 @@ describe('Customer pages and the hotel API', () => {
     const fixture = TestBed.createComponent(RoomDetail);
     fixture.detectChanges();
     http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
     const page = fixture.componentInstance;
     page.form.setValue({ check_in: start, check_out: end, guest_count: 2 });
     page.reviewStay(room);
@@ -80,7 +82,7 @@ describe('Customer pages and the hotel API', () => {
     return fixture;
   }
 
-  it('submits only room, dates and guest count, then opens the confirmed server record', () => {
+  it('submits only room, dates and guest count, then opens the payment page', () => {
     const fixture = review();
     const page = fixture.componentInstance;
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -92,7 +94,7 @@ describe('Customer pages and the hotel API', () => {
     expect(submit.request.headers.get('X-CSRFToken')).toBe('booking-token');
     expect(navigate).not.toHaveBeenCalled();
     submit.flush(booking, { status: 201, statusText: 'Created' });
-    expect(navigate).toHaveBeenCalledWith(['/bookings', booking.id, 'confirmation']);
+    expect(navigate).toHaveBeenCalledWith(['/bookings', booking.id, 'payment']);
   });
 
   it('keeps the review open and displays a booking conflict', () => {
@@ -108,6 +110,27 @@ describe('Customer pages and the hotel API', () => {
     expect(fixture.nativeElement.textContent).toContain('The room is already booked for those dates.');
     expect(fixture.nativeElement.textContent).toContain('Review your reservation');
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('shows the availability calendar and fills the dates when days are picked', () => {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-availability-calendar')).not.toBeNull();
+    fixture.componentInstance.pickDates({ check_in: start, check_out: end });
+    expect(fixture.componentInstance.form.getRawValue()).toMatchObject({ check_in: start, check_out: end });
+  });
+
+  it('still works when the calendar cannot be loaded', () => {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(room);
+    http.expectOne('/api/rooms/3/availability/').flush({}, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-availability-calendar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
   });
 
   it('shows cancellation only after the server responds and reloads the list', () => {

@@ -21,6 +21,7 @@ import { resource } from './admin-state';
         @for (card of cards; track card.key) {
           <article class="staff-metric"><p>{{ card.title }}</p><strong>{{ row[card.key] }}</strong><small>{{ card.hint }}</small></article>
         }
+        <article class="staff-metric"><p>Awaiting payment</p><strong>{{ row.pending_payments ?? 0 }}</strong><small>{{ money(row.pending_amount ?? 0) }} to collect at the hotel</small></article>
         <article class="staff-metric staff-revenue"><p>Total revenue</p><strong>{{ money(row.revenue) }}</strong><small>Paid amounts and completed stays without payment records</small></article>
       </div>
     }

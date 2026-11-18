@@ -14,10 +14,13 @@ Development base URL: `http://localhost:8000/api/`. Send JSON with `Content-Type
 | GET `auth/me/` | Session | 200, current account details |
 | GET `rooms/` | Public | 200, array of matching bookable rooms |
 | GET `rooms/{id}/` | Public | 200, room details and availability |
+| GET `rooms/{id}/availability/` | Public | 200, occupied date ranges for the room calendar |
 | GET `bookings/` | Session | 200, array of the current user's bookings |
 | POST `bookings/` | Session + CSRF | 201, new booking |
 | GET `bookings/{id}/` | Session and owner | 200, booking details |
 | POST `bookings/{id}/cancel/` | Session, owner, and CSRF | 200, cancelled booking |
+| GET `bookings/{id}/payments/` | Session and owner | 200, array of the booking's payments |
+| POST `bookings/{id}/pay/` | Session, owner, CSRF, JSON body | 201 `{payment, booking}`; 402 if the card is declined |
 | POST `contact/` | Public + CSRF | 201, message ID |
 
 Hotel administration uses [Django Admin](http://localhost:8000/admin/). A non-superuser hotel administrator needs Staff status and the Admin group's hotel permissions. Registration always assigns Guest and uses Django's password validators and hashing. An existing Django account needs a unique, nonblank email to sign in through the API. Built-in Django Admin continues to use username login.
@@ -68,6 +71,16 @@ Example room object:
 
 Each image includes `id`, `image` (URL), and `is_primary`. Without dates, availability reflects the room's operational status. With dates, it also accounts for existing reservations. The list omits unavailable rooms. The detail endpoint can return an unavailable room with `available: false`.
 
+### Availability calendar
+
+`GET /api/rooms/{id}/availability/` returns the upcoming occupied stays of one room so the site can draw a calendar:
+
+```json
+{"room": 3, "bookable": true, "booked": [{"check_in": "2027-05-10", "check_out": "2027-05-12"}]}
+```
+
+`check_in` is the first occupied night and `check_out` is the day the room is free again, so another guest may check in on that day. Cancelled and finished stays are omitted and no guest details are exposed. `bookable: false` means the room is in maintenance or out of service.
+
 ## Bookings and contact
 
 Create a booking:
@@ -105,6 +118,20 @@ Contact request and response:
 {"id":7}
 ```
 
+## Payments
+
+`POST bookings/{id}/pay/` accepts a JSON body (other content types get 415) with a `method`:
+
+| `method` | Body | Effect |
+|---|---|---|
+| `card` (default) | `card_holder`, `card_number`, `expiry` (MM/YY), `cvv` | Pays the whole balance now. Booking becomes `confirmed`. |
+| `prepayment` | same card fields | Pays 30% of the total now by card (only before any other payment). Booking becomes `confirmed`; the rest is due at the hotel. |
+| `cash` | none | Pay at the hotel. Creates a `pending` payment and confirms the booking; staff mark it paid when the money is received. |
+
+The gateway is simulated. `4242 4242 4242 4242` succeeds and `4000 0000 0000 0002` is declined (402, a `failed` payment is recorded). Only the last four card digits are kept; expiry and CVV are discarded. Payment attempts are limited to 20 per minute per user (429 above that), and responses are sent with `Cache-Control: no-store`.
+
+Every booking response includes `paid_amount`, `balance_due`, `prepayment_amount` and `payment_status` (`unpaid`, `partial`, `pay_at_hotel`, `paid`, `refunded`). Payment statuses are `pending`, `paid`, `failed`, `refunded` and `cancelled`. A guest may pay a pending or confirmed booking while a balance remains; paying by card replaces an open pay-at-hotel request. Cancelling a booking refunds its `paid` payments and cancels its `pending` ones. The database also refuses (trigger) paid payments that add up to more than the booking total.
+
 ## Errors and concurrency
 
 | Status | Example |
@@ -135,6 +162,9 @@ These routes are under `/api/admin/`. They use the same session cookie and CSRF 
 | GET `reservations/`, `reservations/{id}/`, `front-desk/` | View bookings. Reservation list accepts `q`, `status`, and `date`. |
 | POST `reservations/{id}/status/` | View and change bookings. Send `{"status":"confirmed"}` or another permitted next state. |
 | POST `front-desk/{id}/check-in/`, `front-desk/{id}/check-out/` | View and change bookings. Send an empty object. |
+| GET `payments/?q=&status=&method=&date=`, GET `payments/{id}/` | View bookings and payments. Each row has guest, room, booking totals, method, status, note, who recorded it. |
+| POST `payments/{id}/status/` | Change payments. `{"status":"paid"\|"refunded"\|"cancelled","note":"..."}`. Allowed: pending → paid or cancelled, paid → refunded. |
+| GET `reservations/{id}/payments/`, POST `reservations/{id}/payments/` | View, and add payments to record money received: `{"method":"cash","amount":"20000","note":"Deposit"}`. The amount cannot exceed the balance due. |
 | GET `guests/?q=...`, `guests/{id}/` | View bookings and Django users. Guest details include booking history and exclude authentication fields. |
 
 Use `POST /api/auth/logout/` to end the shared Django session. The API returns `403` for denied access or invalid CSRF, `400` for invalid input, `404` for missing records, and `409` for business rule conflicts. A room with any reservation history can be marked `out_of_service` through PATCH. DELETE is reserved for rooms with zero reservation history.

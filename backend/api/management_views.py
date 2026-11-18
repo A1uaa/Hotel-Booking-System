@@ -15,22 +15,23 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from hotel.models import Booking, Room, RoomImage, RoomType
+from hotel.models import Booking, Payment, Room, RoomImage, RoomType
 from .authentication import authenticate_email
 from .management_permissions import capabilities, management_access, staff_access
 from .management_serializers import (
-    ChangeStatus, GuestSerializer, ManagedBookingSerializer, ManagedRoomSerializer,
-    ManagedRoomTypeSerializer, PhotoUpload, PrimaryPhoto, ReportDates, User,
+    ChangePaymentStatus, ChangeStatus, GuestSerializer, ManagedBookingSerializer, ManagedPaymentSerializer,
+    ManagedRoomSerializer, ManagedRoomTypeSerializer, PhotoUpload, PrimaryPhoto, RecordPayment, ReportDates, User,
 )
 from .management_stats import dashboard, reports
 from .serializers import RoomImageSerializer, UserSerializer
-from .services import Conflict, handle_database_contention
+from .services import Conflict, change_payment_status, handle_database_contention, record_payment, with_payment_totals
 
 
 
 ROOM_READ = ("view_room", "view_roomtype")
 BOOKING_READ = ("view_booking",)
 BOOKING_WRITE = (*BOOKING_READ, "change_booking")
+PAYMENT_READ = ("view_booking", "view_payment")
 STATS_READ = ("view_room", "view_booking", "view_payment")
 
 
@@ -177,7 +178,9 @@ def photo_detail(request, pk, photo_id):
 
 
 def managed_bookings():
-    return Booking.objects.select_related("user", "room__room_type").order_by("-check_in", "-pk")
+    return with_payment_totals(
+        Booking.objects.select_related("user", "room__room_type")
+    ).order_by("-check_in", "-pk")
 
 
 def booking_data(value, *, many=False):
@@ -315,3 +318,68 @@ def report(request):
     dates = ReportDates(data=request.query_params)
     dates.is_valid(raise_exception=True)
     return Response(reports(**dates.validated_data))
+
+
+def managed_payments():
+    return Payment.objects.select_related("booking__user", "booking__room", "recorded_by").order_by("-created_at", "-pk")
+
+
+def payment_data(value, *, many=False):
+    return ManagedPaymentSerializer(value, many=many).data
+
+
+@api_view(["GET"])
+@permission_classes([management_access(GET=PAYMENT_READ)])
+def payments(request):
+    rows = managed_payments()
+    query = request.query_params.get("q", "").strip()[:254]
+    if query:
+        rows = rows.annotate(guest_name=Concat("booking__user__first_name", Value(" "), "booking__user__last_name"))
+        search = (
+            Q(booking__user__email__icontains=query) | Q(guest_name__icontains=query)
+            | Q(booking__room__room_number__icontains=query) | Q(payment_method__icontains=query)
+        )
+        number = query.removeprefix("#")
+        if number.isascii() and number.isdecimal() and len(number) <= 19 and int(number) <= 2**63 - 1:
+            search |= Q(booking_id=int(number)) | Q(pk=int(number))
+        rows = rows.filter(search)
+    status = request.query_params.get("status")
+    if status:
+        rows = rows.filter(status=serializers.ChoiceField(Payment.Status.choices).run_validation(status))
+    method = request.query_params.get("method")
+    if method:
+        rows = rows.filter(method=serializers.ChoiceField(Payment.Method.choices).run_validation(method))
+    day = request.query_params.get("date")
+    if day:
+        day = serializers.DateField().run_validation(day)
+        rows = rows.filter(created_at__date=day)
+    return Response(payment_data(rows, many=True))
+
+
+@api_view(["GET"])
+@permission_classes([management_access(GET=PAYMENT_READ)])
+def payment(request, pk):
+    return Response(payment_data(get_object_or_404(managed_payments(), pk=pk)))
+
+
+@api_view(["POST"])
+@permission_classes([management_access(POST=(*PAYMENT_READ, "change_payment"))])
+@handle_database_contention
+def payment_status(request, pk):
+    serializer = ChangePaymentStatus(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    change_payment_status(pk, serializer.validated_data["status"], note=serializer.validated_data["note"], user=request.user)
+    return Response(payment_data(get_object_or_404(managed_payments(), pk=pk)))
+
+
+@api_view(["GET", "POST"])
+@permission_classes([management_access(GET=PAYMENT_READ, POST=(*PAYMENT_READ, "add_payment"))])
+@handle_database_contention
+def reservation_payments(request, pk):
+    if request.method == "GET":
+        get_object_or_404(Booking, pk=pk)
+        return Response(payment_data(managed_payments().filter(booking_id=pk), many=True))
+    serializer = RecordPayment(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    created = record_payment(pk, user=request.user, **serializer.validated_data)
+    return Response(payment_data(get_object_or_404(managed_payments(), pk=created.pk)), status=201)

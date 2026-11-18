@@ -69,6 +69,16 @@ Django room photos take precedence when present. The bundled illustrative stock 
 
 Photo sources: [Hotel](https://images.unsplash.com/photo-1542314831-068cd1dbfeeb), [exterior](https://images.unsplash.com/photo-1564501049412-61c2a3083791), [standard room](https://images.unsplash.com/photo-1611892440504-42a792e24d32), [deluxe room](https://images.unsplash.com/photo-1618773928121-c32242e63f39), and [suite](https://images.unsplash.com/photo-1590490360182-c33d57733427).
 
+## Payments
+
+Guests choose how to pay on `/bookings/:id/payment`:
+
+- **Card** - pays the whole balance now; the booking is confirmed at once.
+- **Prepayment** - pays a 30% deposit by card now (`PREPAYMENT_PERCENT` in `backend/api/services.py`); the rest is due at the hotel.
+- **Pay at the hotel (cash)** - the room is reserved and a `pending` payment is created; staff mark it received.
+
+The gateway is simulated: `4242 4242 4242 4242` succeeds, `4000 0000 0000 0002` is declined. Only the last four digits are stored. Staff manage everything under **Payments** in the staff portal (mark cash received, refund, void) and can record money received from a reservation's detail panel. After pulling these changes run `manage.py migrate` (migration `0003` adds the payment method fields and a database trigger that stops paid payments from exceeding the booking total). Run `manage.py test api.test_payments` to check the payment rules.
+
 ## Custom staff dashboard
 
 Start Django and Angular as shown above. Visit [Angular staff sign-in](http://localhost:4200/admin/login) to open the custom dashboard. The separate [Django Admin](http://localhost:8000/admin/) can provision staff accounts.

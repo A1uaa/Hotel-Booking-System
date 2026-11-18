@@ -29,6 +29,11 @@ import { resource } from './admin-state';
         <div class="staff-panel staff-table-wrap"><table class="staff-table"><caption>Popular room types</caption><thead><tr><th>Room type</th><th>Bookings</th></tr></thead>
           <tbody>@for (row of report.popular_room_types; track row.name) { <tr><th scope="row">{{ row.name }}</th><td>{{ row.bookings }}</td></tr> }
           @empty { <tr><td colspan="2">No non-cancelled bookings in this period.</td></tr> }</tbody></table></div>
+        @if (report.revenue_by_method; as byMethod) {
+          <div class="staff-panel staff-table-wrap"><table class="staff-table"><caption>Paid by method</caption><thead><tr><th>Method</th><th>Amount</th></tr></thead>
+            <tbody>@for (method of methods; track method) { <tr><th scope="row">{{ label(method) }}</th><td>{{ money(byMethod[method]) }}</td></tr> }
+            <tr><th scope="row">Refunded</th><td>{{ money(report.refunded ?? 0) }}</td></tr></tbody></table></div>
+        }
       </div>
     }
   `,
@@ -44,6 +49,7 @@ export class AdminReports {
     const days = (Date.parse(control.value.end) - Date.parse(control.value.start)) / 86_400_000;
     return days >= 0 && days <= 365 ? null : { dateRange: true };
   } });
+  readonly methods = ['card', 'prepayment', 'cash'] as const;
   readonly statuses = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] as const;
   readonly label = statusLabel;
   readonly money = money;

@@ -26,10 +26,14 @@
             <dt>Guests</dt><dd>{{ stay.guest_count }}</dd><dt>Estimated total</dt><dd>{{ money(nights(stay.check_in, stay.check_out) * +reviewPrice()) }}</dd></dl>
           <p class="muted">The hotel server calculates the final total when you confirm.</p>
           @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
-          <button class="button" type="button" [disabled]="busy()" (click)="confirm(stay)">{{ busy() ? 'Submitting…' : 'Confirm reservation' }}</button>
+          <button class="button" type="button" [disabled]="busy()" (click)="confirm(stay)">{{ busy() ? 'Submitting…' : 'Confirm and continue to payment' }}</button>
           <button class="plain-button" type="button" [disabled]="busy()" (click)="review.set(null); error.set('')">Edit stay</button>
         } @else {
           <form class="form-stack" [formGroup]="form" (ngSubmit)="reviewStay(item)">
+            @if (availability(); as calendar) {
+              <app-availability-calendar [booked]="calendar.booked" [today]="today()"
+                [checkIn]="stay().check_in ?? ''" [checkOut]="stay().check_out ?? ''" (pick)="pickDates($event)" />
+            }
             <fieldset class="form-stack bare-fieldset" [disabled]="busy()">
               <label>Check-in<input type="date" formControlName="check_in" [min]="today()" required /></label>
               <label>Check-out<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" required /></label>

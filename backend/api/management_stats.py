@@ -2,7 +2,7 @@ from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from hotel.models import Booking, Payment, Room
 
 
@@ -21,6 +21,21 @@ def revenue(start=None, end=None):
     return f"{amount:.2f}"
 
 
+def payment_breakdown(start=None, end=None):
+    """Paid money per method, plus what was refunded, from payment records only."""
+    rows = Payment.objects.all()
+    if start is not None:
+        rows = rows.filter(created_at__date__range=(start, end))
+    by_method = {method: Decimal(0) for method in Payment.Method.values}
+    for row in rows.filter(status=Payment.Status.PAID).values("method").annotate(total=Sum("amount")):
+        by_method[row["method"]] = row["total"]
+    refunded = rows.filter(status=Payment.Status.REFUNDED).aggregate(total=Sum("amount", default=Decimal(0)))["total"]
+    return {
+        "revenue_by_method": {method: f"{amount:.2f}" for method, amount in by_method.items()},
+        "refunded": f"{refunded:.2f}",
+    }
+
+
 def dashboard(today):
     bookings = Booking.objects.all()
     occupied = bookings.filter(status=Booking.Status.CHECKED_IN)
@@ -36,7 +51,14 @@ def dashboard(today):
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED, Booking.Status.CHECKED_IN],
         ).count(),
         "revenue": revenue(),
+        **pending_payments(),
     }
+
+
+def pending_payments():
+    pending = Payment.objects.filter(status=Payment.Status.PENDING).aggregate(
+        count=Count("id"), total=Sum("amount", default=Decimal(0)))
+    return {"pending_payments": pending["count"], "pending_amount": f"{pending['total']:.2f}"}
 
 
 def reports(start, end):
@@ -61,6 +83,7 @@ def reports(start, end):
         "occupied_nights": occupied_nights, "capacity_nights": capacity_nights,
         "occupancy_percent": round(100 * occupied_nights / capacity_nights, 2) if capacity_nights else 0,
         "revenue": revenue(start, end),
+        **payment_breakdown(start, end),
         "popular_room_types": [{"name": name, "bookings": count} for name, count in sorted(
             popular.items(), key=lambda item: (-item[1], item[0])
         )],

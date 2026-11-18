@@ -118,12 +118,26 @@ class Payment(models.Model):
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
         REFUNDED = "refunded", "Refunded"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class Method(models.TextChoices):
+        CARD = "card", "Card"
+        CASH = "cash", "Cash"
+        PREPAYMENT = "prepayment", "Prepayment"
 
     booking = models.ForeignKey(Booking, on_delete=models.PROTECT, related_name="payments")
     amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    # Human-readable label such as "Card ending 4242"; `method` is the machine-readable type.
     payment_method = models.CharField(max_length=50)
+    method = models.CharField(max_length=20, choices=Method.choices, default=Method.CARD)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    note = models.CharField(max_length=255, blank=True, default="")
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recorded_payments",
+    )
+    paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [

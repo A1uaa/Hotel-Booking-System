@@ -1,8 +1,10 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from hotel.models import Booking, Room, RoomImage, RoomType
-from .serializers import RoomImageSerializer
+from hotel.models import Booking, Payment, Room, RoomImage, RoomType
+from .serializers import PaymentSummaryMixin, RoomImageSerializer
 
 User = get_user_model()
 
@@ -51,7 +53,7 @@ class GuestSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "email", "date_joined")
 
 
-class ManagedBookingSerializer(serializers.ModelSerializer):
+class ManagedBookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     guest = GuestSerializer(source="user")
     room_number = serializers.CharField(source="room.room_number")
     room_type = serializers.CharField(source="room.room_type.name")
@@ -77,3 +79,34 @@ class ReportDates(serializers.Serializer):
         if not 0 <= days <= 365:
             raise serializers.ValidationError("Select an inclusive range of up to 366 days.")
         return data
+
+
+class ManagedPaymentSerializer(serializers.ModelSerializer):
+    guest = GuestSerializer(source="booking.user")
+    room_number = serializers.CharField(source="booking.room.room_number")
+    booking_status = serializers.CharField(source="booking.status")
+    booking_total = serializers.DecimalField(source="booking.total_price", max_digits=12, decimal_places=2)
+    recorded_by_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = (
+            "id", "booking", "guest", "room_number", "booking_status", "booking_total", "amount",
+            "method", "payment_method", "status", "note", "recorded_by_email", "paid_at", "created_at",
+        )
+
+    def get_recorded_by_email(self, payment):
+        return payment.recorded_by.email if payment.recorded_by else ""
+
+
+class RecordPayment(serializers.Serializer):
+    method = serializers.ChoiceField(choices=Payment.Method.choices)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class ChangePaymentStatus(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[
+        (Payment.Status.PAID, "Paid"), (Payment.Status.REFUNDED, "Refunded"), (Payment.Status.CANCELLED, "Cancelled"),
+    ])
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")

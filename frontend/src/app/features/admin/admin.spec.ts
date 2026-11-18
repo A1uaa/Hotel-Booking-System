@@ -12,7 +12,7 @@ import { StaffSession } from './admin-session';
 const capabilities: Capabilities = {
   dashboard: true, rooms: true, addRoom: true, changeRoom: true, deleteRoom: true,
   addPhoto: true, changePhoto: true, deletePhoto: true, reservations: true, changeBooking: true,
-  guests: true, reports: true,
+  guests: true, reports: true, payments: true, recordPayment: true, changePayment: true,
 };
 const session: AdminSession = {
   account: { id: 1, email: 'manager@example.test', role: 'Admin' }, capabilities,
