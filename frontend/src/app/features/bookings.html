@@ -1,0 +1,43 @@
+<section class="page-intro"><div class="shell"><p class="eyebrow">{{ 'bk.eyebrow' | t }}</p><h1>{{ 'bk.title' | t }}</h1><p>{{ 'bk.lead' | t }}</p></div></section>
+<section class="shell section booking-list">
+  @if (feedback()) { <p class="notice success" role="status">{{ feedback() }}</p> }
+  @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <p class="notice" role="status">{{ 'bk.loading' | t }}</p> }
+  @else if (!rows().length && error()) { <button class="button outline" (click)="load()">{{ 'bk.retry' | t }}</button> }
+  @else if (!rows().length) {
+    <div class="panel"><h2>{{ 'bk.noneTitle' | t }}</h2><p>{{ 'bk.noneText' | t }}</p><a class="button" routerLink="/rooms">{{ 'bk.explore' | t }} ↗</a></div>
+  } @else {
+    @for (booking of rows(); track booking.id) {
+      <article class="panel booking-row">
+        @if (rooms()[booking.room]; as room) {
+          <img class="booking-photo" [src]="photos(room)[0]" (error)="fallback($event)" [alt]="room.room_type.name | content" />
+        }
+        <div class="booking-summary">
+          <p class="eyebrow">{{ 'bk.res' | t: { id: booking.id } }}</p>
+          <h2>{{ rooms()[booking.room]?.room_type?.name ? (rooms()[booking.room]!.room_type.name | content) : ('bk.roomRes' | t) }}</h2>
+          @if (rooms()[booking.room]; as room) { <a class="text-link" [routerLink]="['/rooms', room.id]">{{ 'common.room' | t: { number: room.room_number } }} ↗</a> }
+          <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ booking.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ booking.check_out }}</dd><dt>{{ 'common.guests' | t }}</dt><dd>{{ booking.guest_count }}</dd>
+            @for (extra of booking.extras ?? []; track $index) { <dt>{{ extra.name | content }}</dt><dd>{{ extra.included ? ('ex.included' | t) : money(extra.amount) }}</dd> }
+            <dt>{{ 'common.total' | t }}</dt><dd>{{ money(booking.total_price) }}</dd>
+            @if (booking.status !== 'cancelled' && booking.paid_amount && booking.paid_amount !== '0.00') { <dt>{{ 'bk.paid' | t }}</dt><dd>{{ money(booking.paid_amount) }}</dd> }
+            @if (booking.status !== 'cancelled' && booking.balance_due && booking.balance_due !== '0.00') { <dt>{{ 'bk.balance' | t }}</dt><dd>{{ money(booking.balance_due) }}</dd> }</dl>
+        </div>
+        <div class="booking-actions">
+          <span class="badge" [class.cancelled]="booking.status === 'cancelled'">{{ label(booking.status) }}</span>
+          @if (booking.payment_status && booking.payment_status !== 'unpaid') { <span class="badge payment-badge" [attr.data-payment]="booking.payment_status">{{ label(booking.payment_status) }}</span> }
+          @if (booking.status === 'pending') { <a class="button" [routerLink]="['/bookings', booking.id, 'payment']">{{ 'bk.payNow' | t }}</a> }
+          @else if (booking.status === 'confirmed' && booking.payment_status !== 'paid') { <a class="button outline" [routerLink]="['/bookings', booking.id, 'payment']">{{ 'bk.payBalance' | t }}</a> }
+          @if (booking.status === 'pending' || booking.status === 'confirmed') {
+            @if (selected() === booking.id) {
+              <p>{{ 'bk.cancelQ' | t }}</p>
+              <button class="button outline" (click)="cancel(booking.id)" [disabled]="cancelling() !== null">{{ (cancelling() === booking.id ? 'bk.cancelling' : 'bk.yesCancel') | t }}</button>
+              <button class="plain-button" (click)="selected.set(null)" [disabled]="cancelling() !== null">{{ 'bk.keep' | t }}</button>
+            } @else {
+              <button class="plain-button" (click)="selected.set(booking.id)" [disabled]="cancelling() !== null">{{ 'bk.cancel' | t }}</button>
+            }
+          }
+        </div>
+      </article>
+    }
+  }
+</section>

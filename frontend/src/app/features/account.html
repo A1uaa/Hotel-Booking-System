@@ -1,0 +1,21 @@
+<section class="shell section account-layout">
+  <div class="account-image"><img src="/photos/lobby.jpg" alt="" /><div><p class="eyebrow">Koktem Park Hotel</p><p>{{ 'ac.stay' | t }}</p></div></div>
+  <div class="panel auth-panel">
+    <p class="eyebrow">{{ 'ac.guest' | t }}</p>
+    <h1>{{ (register ? 'ac.createTitle' : 'ac.loginTitle') | t }}</h1>
+    <p>{{ (register ? 'ac.createText' : 'ac.loginText') | t }}</p>
+    @if (registered) { <p class="notice success" role="status">{{ 'ac.ready' | t }}</p> }
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+      <label>{{ 'ac.email' | t }}<input type="email" autocomplete="email" formControlName="email" required maxlength="254" /></label>
+      @if (form.controls.email.touched && form.controls.email.invalid) { <p class="field-error">{{ 'ac.emailErr' | t }}</p> }
+      <label>{{ 'ac.password' | t }}<input type="password" [attr.autocomplete]="register ? 'new-password' : 'current-password'" formControlName="password" required maxlength="128" /></label>
+      @if (form.controls.password.touched && form.controls.password.invalid) { <p class="field-error">{{ (register ? 'ac.pwRegErr' : 'ac.pwErr') | t }}</p> }
+      @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+      <button class="button" type="submit" [disabled]="busy()">{{ busy() ? ('ac.wait' | t) : ((register ? 'ac.create' : 'ac.loginTitle') | t) }}</button>
+    </form>
+    <p class="auth-switch">
+      {{ (register ? 'ac.already' : 'ac.new') | t }}
+      <a class="text-link" [routerLink]="register ? '/login' : '/register'" [queryParams]="{returnUrl}">{{ (register ? 'nav.login' : 'nav.register') | t }}</a>
+    </p>
+  </div>
+</section>

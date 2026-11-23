@@ -1,0 +1,40 @@
+<section class="hero">
+  <div class="shell hero-content">
+    <p class="eyebrow">{{ 'home.eyebrow' | t }}</p>
+    <h1>{{ 'home.title1' | t }}<br />{{ 'home.title2' | t }}</h1>
+    <p>{{ 'home.lead' | t }}</p>
+    <a class="button button-light" routerLink="/rooms">{{ 'home.explore' | t }} <span aria-hidden="true">↗</span></a>
+  </div>
+  <span class="hero-caption">{{ 'home.caption' | t }}</span>
+</section>
+<div class="shell hero-search"><app-stay-search (search)="search($event)" /></div>
+
+<section class="shell section editorial">
+  <div class="editorial-photo"><img src="/photos/lobby.jpg" [alt]="'home.lobbyAlt' | t" loading="lazy" /></div>
+  <div class="editorial-copy">
+    <p class="eyebrow">{{ 'home.welcome' | t }}</p>
+    <h2>{{ 'home.slow' | t }}</h2>
+    <p>{{ 'home.slowText' | t }}</p>
+    <a class="text-link" routerLink="/rooms">{{ 'home.find' | t }} <span aria-hidden="true">↗</span></a>
+  </div>
+</section>
+
+<section class="rooms-band section">
+  <div class="shell">
+    <div class="section-heading"><div><p class="eyebrow">{{ 'home.stay' | t }}</p><h2>{{ 'home.rooms' | t }}</h2></div><a class="text-link" routerLink="/rooms">{{ 'home.viewAll' | t }}</a></div>
+    @if (loading()) { <p class="notice" role="status">{{ 'home.loading' | t }}</p> }
+    @else if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+    @else if (!rooms().length) { <p class="notice">{{ 'home.none' | t }}</p> }
+    @else { <div class="room-grid">@for (room of rooms(); track room.id) { <app-room-card [room]="room" /> }</div> }
+  </div>
+</section>
+
+<section class="shell section">
+  <p class="eyebrow">{{ 'home.why' | t }}</p><h2>{{ 'home.make' | t }}</h2>
+  <div class="amenity-grid">
+    <article><span aria-hidden="true">01</span><h3>{{ 'home.a1t' | t }}</h3><p>{{ 'home.a1' | t }}</p></article>
+    <article><span aria-hidden="true">02</span><h3>{{ 'home.a2t' | t }}</h3><p>{{ 'home.a2' | t }}</p></article>
+    <article><span aria-hidden="true">03</span><h3>{{ 'home.a3t' | t }}</h3><p>{{ 'home.a3' | t }}</p></article>
+  </div>
+</section>
+<section class="closing"><div class="shell section"><p class="eyebrow">{{ 'home.next' | t }}</p><h2>{{ 'home.see' | t }}</h2><a class="button button-light" routerLink="/rooms">{{ 'home.browse' | t }}</a></div></section>

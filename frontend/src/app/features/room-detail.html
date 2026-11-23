@@ -1,0 +1,106 @@
+<section class="shell section">
+  <a class="text-link" routerLink="/rooms">{{ 'rd.back' | t }}</a>
+  @if (loading()) { <p class="notice" role="status">{{ 'rd.loading' | t }}</p> }
+  @else if (loadError()) { <p class="notice error" role="alert">{{ loadError() }}</p> }
+  @else if (room(); as item) {
+    <div class="detail-heading"><p class="eyebrow">{{ 'rd.eyebrow' | t: { number: item.room_number } }}</p><h1>{{ item.room_type.name | content }}</h1>
+      @if (reviews(); as summary) {
+        <p class="review-summary">
+          @if (summary.count) {
+            <app-stars [value]="summary.average ?? 0" /> <strong>{{ summary.average }}</strong> · <a class="text-link" [routerLink]="['/rooms', item.id]" fragment="reviews" queryParamsHandling="preserve">{{ 'reviews.count' | t: { count: summary.count } }}</a>
+          } @else { <span class="muted">{{ 'reviews.none' | t }}</span> · <a class="text-link" [routerLink]="['/rooms', item.id]" fragment="reviews" queryParamsHandling="preserve">{{ 'rd.beFirst' | t }}</a> }
+        </p>
+      }
+    </div>
+    <div class="detail-layout">
+      <article>
+        <div class="gallery-main"><img [src]="photos(item)[selectedPhoto()]" (error)="fallback($event)" [alt]="'rd.photoAlt' | t: { name: (item.room_type.name | content), n: selectedPhoto() + 1 }" /></div>
+        @if (photos(item).length > 1) {
+          <div class="gallery-thumbs" [attr.aria-label]="'rd.photos' | t">@for (photo of photos(item); track $index) {
+            <button type="button" (click)="selectedPhoto.set($index)" [attr.aria-pressed]="selectedPhoto() === $index" [attr.aria-label]="'rd.viewPhoto' | t: { n: $index + 1 }"><img [src]="photo" (error)="fallback($event)" alt="" /></button>
+          }</div>
+        }
+        @if (!item.images.length) { <p class="photo-note">{{ 'rd.photoNote' | t }}</p> }
+        <div class="room-description"><h2>{{ 'rd.about' | t }}</h2><p>{{ item.description | content }}</p><p>{{ 'common.upTo' | t: { count: item.capacity } }}</p>
+          <h3>{{ 'rd.amenities' | t }}</h3><ul class="tags">@for (amenity of item.amenities; track $index) { <li>{{ amenity | content }}</li> }</ul>
+        </div>
+        @if (reviews(); as summary) {
+          <section class="reviews" id="reviews" aria-labelledby="reviews-title">
+            <h2 id="reviews-title">{{ 'rd.ratingsTitle' | t }}</h2>
+            <div class="rating-layout">
+              <section class="panel" aria-labelledby="rating-title">
+                <p class="eyebrow">{{ 'rd.pulse' | t }}</p>
+                <h3 id="rating-title">{{ 'rd.rating' | t }}</h3>
+                @if (summary.count) {
+                  <app-rating-summary [average]="summary.average" [count]="summary.count" [breakdown]="summary.breakdown" />
+                } @else { <p class="muted">{{ 'rd.noRatings' | t }}</p> }
+              </section>
+              <section class="panel" aria-labelledby="feedback-title">
+                <h2 id="feedback-title" class="visually-hidden">{{ 'rd.feedback' | t }}</h2>
+                <app-feedback-form [roomId]="item.id" (saved)="reviews.set($event)" />
+              </section>
+            </div>
+            @if (summary.reviews.length) {
+              <h3 class="review-list-title">{{ 'rd.say' | t }}</h3>
+              @for (review of summary.reviews; track review.id) {
+                <article class="review">
+                  <p class="review-head"><app-stars [value]="review.rating" /> <strong>{{ review.author }}</strong> <small class="muted">{{ review.created_at.slice(0, 10) }}</small></p>
+                  @if (review.comment) { <p>{{ review.comment }}</p> }
+                </article>
+              }
+            }
+          </section>
+        }
+      </article>
+      <aside class="panel reservation">
+        <p class="eyebrow">{{ 'rd.yourStay' | t }}</p><h2>{{ money(item.price_per_night) }} <small>{{ 'common.night' | t }}</small></h2>
+        @if (!item.available) { <p class="notice">{{ 'rd.unavailable' | t }}</p> }
+        @else if (review(); as stay) {
+          <h3>{{ 'rd.reviewRes' | t }}</h3>
+          <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ stay.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ stay.check_out }}</dd>
+            <dt>{{ 'common.guests' | t }}</dt><dd>{{ stay.guest_count }}</dd>
+            @for (line of extraLines(item, stay.extras ?? [], nights(stay.check_in, stay.check_out), stay.guest_count); track line.code) {
+              <dt>{{ line.name | content }}</dt><dd>{{ line.included ? ('ex.included' | t) : money(line.amount) }}</dd>
+            }
+            <dt>{{ 'rd.estTotal' | t }}</dt><dd>{{ money(reviewTotal(item, stay)) }}</dd></dl>
+          <p class="muted">{{ 'rd.serverNote' | t }}</p>
+          @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+          <button class="button" type="button" [disabled]="busy()" (click)="confirm(stay)">{{ (busy() ? 'rd.submitting' : 'rd.confirm') | t }}</button>
+          <button class="plain-button" type="button" [disabled]="busy()" (click)="review.set(null); error.set('')">{{ 'rd.edit' | t }}</button>
+        } @else {
+          <form class="form-stack" [formGroup]="form" (ngSubmit)="reviewStay(item)">
+            @if (availability(); as calendar) {
+              <app-availability-calendar [booked]="calendar.booked" [today]="today()"
+                [checkIn]="stay().check_in ?? ''" [checkOut]="stay().check_out ?? ''" (pick)="pickDates($event)" />
+            }
+            <fieldset class="form-stack bare-fieldset" [disabled]="busy()">
+              <label>{{ 'common.checkin' | t }}<input type="date" formControlName="check_in" [min]="today()" required /></label>
+              <label>{{ 'common.checkout' | t }}<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" required /></label>
+              <label>{{ 'common.guests' | t }}<input type="number" formControlName="guest_count" min="1" [max]="item.capacity" required /></label>
+            </fieldset>
+            @if (item.extras?.length) {
+              <fieldset class="extras bare-fieldset" [disabled]="busy()">
+                <legend>{{ 'ex.title' | t }}</legend>
+                @for (extra of item.extras ?? []; track extra.code) {
+                  <label class="extra" [class.included]="extra.included">
+                    <input type="checkbox" [checked]="extra.included || chosen().includes(extra.code)"
+                      [disabled]="extra.included" (change)="toggleExtra(extra.code)" />
+                    <span class="extra-text"><strong>{{ extra.name | content }}</strong><small class="muted">{{ extra.description | content }}</small></span>
+                    <span class="extra-price">
+                      @if (extra.included) { <span class="extra-free">{{ 'ex.included' | t }}</span> }
+                      @else { {{ money(extra.price) }} <small class="muted">{{ ('ex.unit.' + extra.unit) | t }}</small> }
+                    </span>
+                  </label>
+                }
+              </fieldset>
+            }
+            @if (estimate(item) > 0) { <p class="estimate">{{ 'rd.estTotal' | t }} <strong>{{ money(estimate(item)) }}</strong></p> }
+            @if (extrasEstimate(item) > 0) { <p class="muted extras-sum">{{ 'ex.sub' | t }}: {{ money(extrasEstimate(item)) }}</p> }
+            @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
+            <button class="button" type="submit" [disabled]="busy()">{{ (busy() ? 'rd.checkingAvail' : 'rd.reviewStay') | t }}</button>
+          </form>
+        }
+      </aside>
+    </div>
+  }
+</section>

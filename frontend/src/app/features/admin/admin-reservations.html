@@ -1,0 +1,63 @@
+<div class="staff-heading"><div><p class="eyebrow">Booking ledger</p><h1>Reservations</h1><p>Search guest stays and manage reservation status.</p></div></div>
+<form class="staff-panel staff-filters" [formGroup]="filter" (ngSubmit)="search()">
+  <label>Search<input formControlName="q" placeholder="Guest, room, or reservation ID" /></label>
+  <label>Status<select formControlName="status"><option value="">All statuses</option>@for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }</select></label>
+  <label>Stay date<input type="date" formControlName="date" /></label>
+  <button class="button">Search</button><button class="plain-button" type="button" (click)="clear()">Reset</button>
+</form>
+@if (action.feedback()) { <p class="notice success" role="status">{{ action.feedback() }}</p> }
+@if (action.error()) { <p class="notice error" role="alert">{{ action.error() }}</p> }
+@if (detail.loading()) { <p class="notice" role="status">Loading reservation details…</p> }
+@if (detail.error()) { <p class="notice error" role="alert">{{ detail.error() }}</p> }
+@if (detail.data(); as row) {
+  <section class="staff-panel staff-editor">
+    <div class="staff-panel-heading"><h2>Reservation #{{ row.id }}</h2><button class="plain-button" (click)="closeDetail()" [disabled]="action.saving()">Close</button></div>
+    <dl class="facts"><dt>Guest</dt><dd>{{ row.guest.name || row.guest.email || 'Guest #' + row.guest.id }}</dd>
+      <dt>Email</dt><dd>{{ row.guest.email || 'Unlisted' }}</dd><dt>Room</dt><dd>{{ row.room_number }} · {{ row.room_type }}</dd>
+      <dt>Dates</dt><dd>{{ row.check_in }} to {{ row.check_out }}</dd><dt>Guest count</dt><dd>{{ row.guest_count }}</dd>
+      <dt>Nightly rate</dt><dd>{{ money(row.price_per_night) }}</dd><dt>Total</dt><dd>{{ money(row.total_price) }}</dd>
+      <dt>Paid</dt><dd>{{ money(row.paid_amount ?? 0) }}</dd><dt>Balance due</dt><dd>{{ money(row.balance_due ?? 0) }}</dd>
+      <dt>Payment</dt><dd><span class="badge" [attr.data-status]="row.payment_status">{{ label(row.payment_status ?? 'unpaid') }}</span></dd>
+      <dt>Status</dt><dd><span class="badge" [attr.data-status]="row.status">{{ label(row.status) }}</span></dd></dl>
+    @if (canChange()) {
+      <div class="staff-actions">@for (status of actions(row); track status) {
+        <button class="button outline" (click)="change(row, status)" [disabled]="action.saving()">{{ status === 'cancelled' ? 'Cancel reservation' : 'Mark ' + label(status) }}</button>
+      }</div>
+    }
+    @if (canSeePayments()) {
+      <h3 class="staff-subheading">Payments</h3>
+      @if (paymentAction.feedback()) { <p class="notice success" role="status">{{ paymentAction.feedback() }}</p> }
+      @if (paymentAction.error()) { <p class="notice error" role="alert">{{ paymentAction.error() }}</p> }
+      @if (payments.loading()) { <p class="notice" role="status">Loading payments…</p> }
+      @else if (payments.error()) { <p class="notice error" role="alert">{{ payments.error() }}</p> }
+      @else if (payments.data(); as items) {
+        <table class="staff-table"><thead><tr><th>#</th><th>Method</th><th>Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>@for (item of items; track item.id) {
+            <tr><th scope="row">#{{ item.id }}</th><td>{{ item.payment_method }}@if (item.note) { <br /><small>{{ item.note }}</small> }</td><td>{{ money(item.amount) }}</td>
+              <td><span class="badge" [attr.data-status]="item.status">{{ label(item.status) }}</span></td>
+              <td>@if (canChangePayment()) {
+                @if (item.status === 'pending') {
+                  <button class="button button-small" (click)="settle(row, item, 'paid')" [disabled]="paymentAction.saving()">Mark received</button>
+                  <button class="plain-button" (click)="settle(row, item, 'cancelled')" [disabled]="paymentAction.saving()">Void</button>
+                } @else if (item.status === 'paid') {
+                  <button class="plain-button" (click)="settle(row, item, 'refunded')" [disabled]="paymentAction.saving()">Refund</button>
+                }
+              }</td></tr>
+          } @empty { <tr><td colspan="5">No payments yet.</td></tr> }</tbody></table>
+      }
+      @if (canRecord() && row.status !== 'cancelled' && row.balance_due && row.balance_due !== '0.00') {
+        <form class="staff-inline-form" [formGroup]="paymentForm" (ngSubmit)="record(row)">
+          <label>Method<select formControlName="method">@for (method of paymentMethods; track method) { <option [value]="method">{{ label(method) }}</option> }</select></label>
+          <label>Amount received (₸)<input type="number" min="0.01" step="0.01" formControlName="amount" [placeholder]="row.balance_due" /></label>
+          <label>Note<input formControlName="note" maxlength="255" placeholder="Optional" /></label>
+          <button class="button" [disabled]="paymentAction.saving()">Record payment</button>
+        </form>
+      }
+    }
+  </section>
+}
+@if (list.loading()) { <p class="notice" role="status">Loading reservations…</p> }
+@else if (list.error()) { <p class="notice error" role="alert">{{ list.error() }}</p><button class="button outline" (click)="load()">Retry</button> }
+@else if (list.data(); as rows) {
+  <app-reservation-table [rows]="rows" [caption]="rows.length + ' reservations'" mode="detail" [busy]="action.saving()" (selected)="select($event)" />
+}
