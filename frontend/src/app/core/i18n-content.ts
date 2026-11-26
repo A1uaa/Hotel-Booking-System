@@ -22,6 +22,11 @@ export const CONTENT: Record<Lang, Record<string, string>> = {
     'Wi-Fi': 'Wi-Fi', 'Work desk': 'Рабочий стол', 'Shower': 'Душ', 'Tea station': 'Чайная станция',
     'Mini fridge': 'Мини-холодильник', 'Smart TV': 'Смарт-ТВ', 'Bathrobes': 'Халаты',
     'Espresso machine': 'Кофемашина', 'Separate lounge': 'Отдельная гостиная', 'Bathtub': 'Ванна',
+    'Breakfast': 'Завтрак', 'Parking': 'Парковка', 'Late check-out': 'Поздний выезд', 'Airport transfer': 'Трансфер из аэропорта',
+    'Buffet breakfast every morning.': 'Завтрак «шведский стол» каждое утро.',
+    'A reserved space in the hotel car park.': 'Закреплённое место на парковке отеля.',
+    'Keep the room until 16:00 on the day you leave.': 'Оставайтесь в номере до 16:00 в день выезда.',
+    'A car from Almaty airport to the hotel.': 'Автомобиль из аэропорта Алматы до отеля.',
   },
   kk: {
     'Standard Room': 'Стандартты бөлме', 'Deluxe Room': 'Делюкс бөлмесі', 'Executive Suite': 'Executive люкс',
@@ -40,5 +45,10 @@ export const CONTENT: Record<Lang, Record<string, string>> = {
     'Wi-Fi': 'Wi-Fi', 'Work desk': 'Жұмыс үстелі', 'Shower': 'Душ', 'Tea station': 'Шай бұрышы',
     'Mini fridge': 'Шағын тоңазытқыш', 'Smart TV': 'Смарт-ТВ', 'Bathrobes': 'Халаттар',
     'Espresso machine': 'Кофе машинасы', 'Separate lounge': 'Бөлек қонақ бөлмесі', 'Bathtub': 'Ванна',
+    'Breakfast': 'Таңғы ас', 'Parking': 'Тұрақ', 'Late check-out': 'Кеш шығу', 'Airport transfer': 'Әуежайдан трансфер',
+    'Buffet breakfast every morning.': 'Күн сайын таңертең «швед үстелі» таңғы асы.',
+    'A reserved space in the hotel car park.': 'Қонақ үй тұрағындағы бекітілген орын.',
+    'Keep the room until 16:00 on the day you leave.': 'Кететін күні бөлмеде сағат 16:00-ге дейін болыңыз.',
+    'A car from Almaty airport to the hotel.': 'Алматы әуежайынан қонақ үйге дейінгі көлік.',
   },
 };

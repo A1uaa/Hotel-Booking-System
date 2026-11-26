@@ -334,3 +334,16 @@ app-favorite { display:block; padding:.4rem; }
 .profile-avatar svg { width:70%; height:70%; }
 
 .panel:target, .staff-table tr:target { outline:2px solid var(--gold); outline-offset:2px; scroll-margin-top:1rem; }
+
+/* Extras (optional services) */
+.extras { display: grid; gap: .5rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+.extras legend { padding: 0; margin-bottom: .25rem; font-weight: 700; }
+.extra { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); cursor: pointer; }
+.extra.included { background: #eef3ea; border-color: #b9cdb2; cursor: default; }
+.extra input { width: 1.1rem; height: 1.1rem; accent-color: var(--forest); }
+.extra-text { display: grid; line-height: 1.3; }
+.extra-text small { font-weight: 400; }
+.extra-price { text-align: right; font-size: .9rem; white-space: nowrap; }
+.extra-price small { display: block; }
+.extra-free { display: inline-block; padding: .1rem .55rem; border-radius: 99px; background: var(--forest); color: #fff; font-size: .75rem; font-weight: 650; }
+.extras-sum { margin: -.25rem 0 0; font-size: .85rem; }

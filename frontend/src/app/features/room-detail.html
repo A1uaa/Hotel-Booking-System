@@ -58,7 +58,11 @@
         @else if (review(); as stay) {
           <h3>{{ 'rd.reviewRes' | t }}</h3>
           <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ stay.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ stay.check_out }}</dd>
-            <dt>{{ 'common.guests' | t }}</dt><dd>{{ stay.guest_count }}</dd><dt>{{ 'rd.estTotal' | t }}</dt><dd>{{ money(nights(stay.check_in, stay.check_out) * +reviewPrice()) }}</dd></dl>
+            <dt>{{ 'common.guests' | t }}</dt><dd>{{ stay.guest_count }}</dd>
+            @for (line of extraLines(item, stay.extras ?? [], nights(stay.check_in, stay.check_out), stay.guest_count); track line.code) {
+              <dt>{{ line.name | content }}</dt><dd>{{ line.included ? ('ex.included' | t) : money(line.amount) }}</dd>
+            }
+            <dt>{{ 'rd.estTotal' | t }}</dt><dd>{{ money(reviewTotal(item, stay)) }}</dd></dl>
           <p class="muted">{{ 'rd.serverNote' | t }}</p>
           @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
           <button class="button" type="button" [disabled]="busy()" (click)="confirm(stay)">{{ (busy() ? 'rd.submitting' : 'rd.confirm') | t }}</button>
@@ -74,7 +78,24 @@
               <label>{{ 'common.checkout' | t }}<input type="date" formControlName="check_out" [min]="form.value.check_in || today()" required /></label>
               <label>{{ 'common.guests' | t }}<input type="number" formControlName="guest_count" min="1" [max]="item.capacity" required /></label>
             </fieldset>
+            @if (item.extras?.length) {
+              <fieldset class="extras bare-fieldset" [disabled]="busy()">
+                <legend>{{ 'ex.title' | t }}</legend>
+                @for (extra of item.extras ?? []; track extra.code) {
+                  <label class="extra" [class.included]="extra.included">
+                    <input type="checkbox" [checked]="extra.included || chosen().includes(extra.code)"
+                      [disabled]="extra.included" (change)="toggleExtra(extra.code)" />
+                    <span class="extra-text"><strong>{{ extra.name | content }}</strong><small class="muted">{{ extra.description | content }}</small></span>
+                    <span class="extra-price">
+                      @if (extra.included) { <span class="extra-free">{{ 'ex.included' | t }}</span> }
+                      @else { {{ money(extra.price) }} <small class="muted">{{ ('ex.unit.' + extra.unit) | t }}</small> }
+                    </span>
+                  </label>
+                }
+              </fieldset>
+            }
             @if (estimate(item) > 0) { <p class="estimate">{{ 'rd.estTotal' | t }} <strong>{{ money(estimate(item)) }}</strong></p> }
+            @if (extrasEstimate(item) > 0) { <p class="muted extras-sum">{{ 'ex.sub' | t }}: {{ money(extrasEstimate(item)) }}</p> }
             @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
             <button class="button" type="submit" [disabled]="busy()">{{ (busy() ? 'rd.checkingAvail' : 'rd.reviewStay') | t }}</button>
           </form>

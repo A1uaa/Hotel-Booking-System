@@ -69,6 +69,20 @@ Django room photos take precedence when present. The bundled illustrative stock 
 
 Photo sources: [Hotel](https://images.unsplash.com/photo-1542314831-068cd1dbfeeb), [exterior](https://images.unsplash.com/photo-1564501049412-61c2a3083791), [standard room](https://images.unsplash.com/photo-1611892440504-42a792e24d32), [deluxe room](https://images.unsplash.com/photo-1618773928121-c32242e63f39), and [suite](https://images.unsplash.com/photo-1590490360182-c33d57733427).
 
+## Ratings and feedback
+
+Anyone can leave feedback on a room, signed in or not and without a booking: 1-5 stars, an optional name and an optional comment. The rooms page shows each room's average rating and review count. Opening a room shows a **Rating** section (average score and the share of each star rating) and a **Feedback** section (the form and the list of reviews). Staff hide or restore a review under **Reviews** in the staff portal; hidden reviews are not shown or counted. Posting is limited to 10 reviews per hour per user or IP (`DEFAULT_THROTTLE_RATES` in `backend/config/settings.py`), and a signed-in user can review a room once.
+
+After pulling these changes run `manage.py migrate` (migration `0005` moves reviews from bookings to rooms; the earlier booking-based reviews are dropped). Run `manage.py test api.test_reviews` and, in `frontend/`, `npm test -- --watch=false` to check them.
+
+## Extras
+
+Guests tick optional extras (breakfast, parking, late check-out, airport transfer) next to the dates on the room page. Prices follow the level of the room: for example breakfast costs more in a Standard Room than in a Deluxe Room, and the Executive Suite includes breakfast, parking and late check-out for free. The estimate on the room page updates as boxes are ticked, and the server works out the final total. Staff change extras and their prices per room type in the Django admin under **Extras**. After pulling these changes run `manage.py migrate` and `manage.py seed_hotel` (the seed adds the extras and never overwrites existing ones).
+
+## Languages
+
+The site is available in Kazakh, Russian and English. The flag buttons in the header switch the language; the choice is remembered in the browser (`localStorage`, key `koktem.language`) and defaults to English. Texts live in `frontend/src/app/core/i18n-en.ts`, `i18n-ru.ts` and `i18n-kk.ts`; templates use the `t` pipe (`{{ 'nav.home' | t }}`) and code uses `translate()`. Room types, descriptions and amenities come from the database in English; the seeded hotel content is translated in `i18n-content.ts`, and anything not listed there is shown as written. Messages returned by the backend and the staff portal stay in English.
+
 ## Payments
 
 Guests choose how to pay on `/bookings/:id/payment`:

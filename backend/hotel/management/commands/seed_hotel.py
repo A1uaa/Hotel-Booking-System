@@ -2,7 +2,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from hotel.models import Room, RoomType
+from hotel.models import Extra, ExtraPrice, Room, RoomType
 
 
 ROOM_TYPES = (
@@ -39,6 +39,15 @@ ROOM_TYPES = (
 )
 
 
+# (code, name, description, unit, price per room type: Standard, Deluxe, Executive, None = included free)
+EXTRAS = (
+    ("breakfast", "Breakfast", "Buffet breakfast every morning.", Extra.Unit.PER_GUEST_NIGHT, (4500, 3500, None)),
+    ("parking", "Parking", "A reserved space in the hotel car park.", Extra.Unit.PER_NIGHT, (3000, 2000, None)),
+    ("late-checkout", "Late check-out", "Keep the room until 16:00 on the day you leave.", Extra.Unit.PER_STAY, (6000, 4000, None)),
+    ("airport-transfer", "Airport transfer", "A car from Almaty airport to the hotel.", Extra.Unit.PER_STAY, (12000, 10000, 8000)),
+)
+
+
 class Command(BaseCommand):
     help = "Create the hotel roles and initial room inventory without overwriting existing rooms."
 
@@ -67,6 +76,21 @@ class Command(BaseCommand):
                 )
                 rooms_created += created
 
+        # Existing extras and prices are left alone so staff changes are never overwritten.
+        types = [RoomType.objects.get(name=name) for name, *_ in ROOM_TYPES]
+        extras_created = 0
+        for code, name, description, unit, prices in EXTRAS:
+            extra, created = Extra.objects.get_or_create(
+                code=code, defaults={"name": name, "description": description, "unit": unit},
+            )
+            extras_created += created
+            for room_type, price in zip(types, prices):
+                ExtraPrice.objects.get_or_create(
+                    extra=extra, room_type=room_type,
+                    defaults={"price": price or 0, "included": price is None},
+                )
+
         self.stdout.write(self.style.SUCCESS(
-            f"Created {types_created} room types and {rooms_created} rooms. Guest and Admin groups are ready."
+            f"Created {types_created} room types, {rooms_created} rooms and {extras_created} extras. "
+            "Guest and Admin groups are ready."
         ))

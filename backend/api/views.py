@@ -82,7 +82,7 @@ def room_catalog(params):
     filters = RoomFilterSerializer(data=params)
     filters.is_valid(raise_exception=True)
     values = filters.validated_data
-    rooms = with_ratings(Room.objects.select_related("room_type").prefetch_related("images")).order_by("room_number")
+    rooms = with_ratings(Room.objects.select_related("room_type").prefetch_related("images", "room_type__extra_prices__extra")).order_by("room_number")
     for param, lookup in (
         ("guests", "capacity__gte"), ("room_type", "room_type_id"),
         ("min_price", "price_per_night__gte"), ("max_price", "price_per_night__lte"),
@@ -162,7 +162,7 @@ def room_review_list(request, pk):
 @handle_database_contention
 def bookings(request):
     if request.method == "GET":
-        owned = with_payment_totals(Booking.objects.filter(user=request.user)).order_by("-created_at", "-pk")
+        owned = with_payment_totals(Booking.objects.filter(user=request.user)).prefetch_related("extras").order_by("-created_at", "-pk")
         return Response(BookingSerializer(owned, many=True).data)
     serializer = BookingInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

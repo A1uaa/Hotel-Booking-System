@@ -68,6 +68,9 @@ export const EN: Record<string, string> = {
   'rd.errGuests': 'This room cannot accommodate that many guests.',
   'rd.errCheck': ' Check My Bookings before submitting again.',
 
+  'ex.title': 'Extras', 'ex.included': 'Included', 'ex.sub': 'Extras',
+  'ex.unit.per_stay': 'per stay', 'ex.unit.per_night': 'per night', 'ex.unit.per_guest_night': 'per guest, per night',
+
   'rs.avg': 'Average score', 'rs.none': 'No ratings yet', 'rs.aria': 'Average rating {value} out of 5',
   'rs.breakdown': 'Rating breakdown', 'rs.gave': 'of reviews gave {star} stars',
   'stars.label': '{value} out of 5 stars', 'stars.input': 'Rating',

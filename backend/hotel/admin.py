@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Booking, ContactMessage, Payment, Review, Room, RoomImage, RoomType
+from .models import Booking, BookingExtra, ContactMessage, Extra, ExtraPrice, Payment, Review, Room, RoomImage, RoomType
 
 
 @admin.register(RoomType)
@@ -24,8 +24,34 @@ class RoomImageAdmin(admin.ModelAdmin):
     list_filter = ("is_primary",)
 
 
+class BookingExtraInline(admin.TabularInline):
+    model = BookingExtra
+    extra = 0
+    readonly_fields = ("extra", "name", "unit", "unit_price", "included", "amount")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class ExtraPriceInline(admin.TabularInline):
+    model = ExtraPrice
+    extra = 0
+
+
+@admin.register(Extra)
+class ExtraAdmin(admin.ModelAdmin):
+    """Extras and what each room type pays for them. Tick "included" to give it away free."""
+
+    list_display = ("name", "code", "unit", "is_active")
+    list_filter = ("unit", "is_active")
+    search_fields = ("name", "code")
+    inlines = [ExtraPriceInline]
+
+
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
+    inlines = [BookingExtraInline]
     list_display = ("id", "user", "room", "check_in", "check_out", "guest_count", "status")
     search_fields = ("=id", "user__username", "user__email", "room__room_number")
     list_filter = ("status", "check_in", "check_out")

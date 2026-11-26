@@ -8,3 +8,6 @@ __pycache__/
 /frontend/dist/
 /backend/media/
 /backend/backups/
+.DS_Store
+*.zip
+/HOTEL_BOOKING/

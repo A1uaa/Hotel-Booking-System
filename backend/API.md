@@ -97,6 +97,19 @@ Every room in `GET /api/rooms/` and `GET /api/rooms/{id}/` carries `rating_avera
 
 Reviews never expose an email or account id. Staff can hide a review from the public site under `admin/reviews/` (see below); hidden reviews are not shown or counted.
 
+### Extras (optional services)
+
+Staff define extras such as breakfast, parking, late check-out and airport transfer in the Django admin (**Extras**), with a price for each room type. The price follows the level of the room, and ticking **included** makes the extra a free bonus of that room type. `unit` is `per_stay`, `per_night` or `per_guest_night`.
+
+Every room in `GET /api/rooms/` and `GET /api/rooms/{id}/` carries `extras`, free bonuses first:
+
+```json
+"extras": [{"code": "parking", "name": "Parking", "description": "...", "unit": "per_night", "price": "0.00", "included": true},
+           {"code": "breakfast", "name": "Breakfast", "description": "...", "unit": "per_guest_night", "price": "4500.00", "included": false}]
+```
+
+`POST /api/bookings/` accepts `"extras": ["breakfast", "airport-transfer"]`, a list of codes (up to 20). The server prices them from the room's type, so the client cannot set a price; a code that the room does not offer returns `400`. The extras a room type includes for free are always added to the booking at no charge. A booking returns its `extras` (`name`, `unit`, `unit_price`, `included`, `amount`), and `total_price` is the room for every night plus the extras. Extras are copied onto the booking, so later price changes never alter it. Payment and the 30% prepayment work on that total. Staff see the extras in `admin/reservations/`.
+
 ## Bookings and contact
 
 Create a booking:

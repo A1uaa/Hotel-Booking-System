@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from hotel.models import Booking, Payment, Review, Room, RoomImage, RoomType
-from .serializers import PaymentSummaryMixin, RoomImageSerializer
+from .serializers import BookingExtraSerializer, PaymentSummaryMixin, RoomImageSerializer
 
 User = get_user_model()
 
@@ -57,12 +57,14 @@ class ManagedBookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer)
     guest = GuestSerializer(source="user")
     room_number = serializers.CharField(source="room.room_number")
     room_type = serializers.CharField(source="room.room_type.name")
+    # Staff see the extras a guest booked (breakfast, parking...) so they can prepare them.
+    extras = BookingExtraSerializer(many=True, read_only=True)
 
     class Meta:
         model = Booking
         fields = (
             "id", "guest", "room", "room_number", "room_type", "check_in", "check_out",
-            "guest_count", "price_per_night", "total_price", "status", "created_at", "updated_at",
+            "guest_count", "price_per_night", "total_price", "extras", "status", "created_at", "updated_at",
         )
 
 

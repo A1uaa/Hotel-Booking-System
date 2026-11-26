@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { apiError, Booking, HotelApi, PaymentInput, PaymentMethod } from '../core/api';
 import { Auth } from '../core/auth';
-import { translate, TranslatePipe } from '../core/i18n';
+import { ContentPipe, translate, TranslatePipe } from '../core/i18n';
 import { money, nights, statusLabel } from '../shared/stay';
 
 function cardNumber(control: AbstractControl): ValidationErrors | null {
@@ -30,7 +30,7 @@ function expiry(control: AbstractControl): ValidationErrors | null {
 }
 
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ContentPipe],
   template: `
     <section class="shell section narrow">
       @if (loading()) { <p class="notice" role="status">{{ 'common.loadingRes' | t }}</p> }
@@ -48,6 +48,7 @@ function expiry(control: AbstractControl): ValidationErrors | null {
             <h1>{{ 'pay.title' | t }}</h1>
             <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ item.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ item.check_out }}</dd>
               <dt>{{ 'common.nights' | t }}</dt><dd>{{ nights(item.check_in, item.check_out) }}</dd>
+              @for (extra of item.extras ?? []; track $index) { <dt>{{ extra.name | content }}</dt><dd>{{ extra.included ? ('ex.included' | t) : money(extra.amount) }}</dd> }
               <dt>{{ 'common.total' | t }}</dt><dd>{{ money(item.total_price) }}</dd>
               @if (paidSoFar(item) > 0) { <dt>{{ 'pay.already' | t }}</dt><dd>{{ money(item.paid_amount ?? 0) }}</dd> }
               <dt>{{ 'pay.due' | t }}</dt><dd><strong>{{ money(due(item)) }}</strong></dd></dl>

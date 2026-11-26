@@ -21,6 +21,14 @@ export function nights(start: string, end: string) {
   return Math.max(0, (Date.parse(end) - Date.parse(start)) / 86_400_000) || 0;
 }
 
+/** What one extra costs for a stay: once, for every night, or for every guest on every night. */
+export function extraAmount(extra: { unit: string; price: string | number }, nightCount: number, guests: number): number {
+  const price = Number(extra.price);
+  if (extra.unit === 'per_night') return price * nightCount;
+  if (extra.unit === 'per_guest_night') return price * nightCount * guests;
+  return price;
+}
+
 export function money(value: string | number): string {
   return new Intl.NumberFormat(LOCALES[language()], { maximumFractionDigits: 2 }).format(Number(value)) + ' ₸';
 }

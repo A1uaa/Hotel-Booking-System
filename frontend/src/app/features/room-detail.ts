@@ -13,7 +13,7 @@ import { imageFallback, roomPhotosFor } from '../shared/photos';
 import { FeedbackForm } from '../shared/feedback-form';
 import { RatingSummary } from '../shared/rating-summary';
 import { Stars } from '../shared/stars';
-import { hotelToday, money, nights, stayDates } from '../shared/stay';
+import { extraAmount, hotelToday, money, nights, stayDates } from '../shared/stay';
 
 @Component({ imports: [FavoriteButton, ReactiveFormsModule, RouterLink, AvailabilityCalendar, Stars, RatingSummary, FeedbackForm, TranslatePipe, ContentPipe], templateUrl: './room-detail.html' })
 export class RoomDetail {
@@ -32,6 +32,9 @@ export class RoomDetail {
   readonly review = signal<BookingInput | null>(null);
   readonly reviewPrice = signal('');
   readonly selectedPhoto = signal(0);
+  /** Codes of the paid extras the guest ticked. Free (included) extras are always on. */
+  readonly chosen = signal<string[]>([]);
+  private wantedExtras: string[] = [];
   readonly photos = roomPhotosFor;
   readonly fallback = imageFallback;
   readonly money = money;
@@ -55,7 +58,9 @@ export class RoomDetail {
         this.error.set('');
         this.review.set(null);
         this.selectedPhoto.set(0);
+        this.chosen.set([]);
         const query = this.route.snapshot.queryParamMap;
+        this.wantedExtras = (query.get('extras') ?? '').split(',').filter(Boolean);
         const guests = Number(query.get('guests'));
         this.form.reset({
           check_in: query.get('check_in') ?? '', check_out: query.get('check_out') ?? '',
@@ -69,6 +74,8 @@ export class RoomDetail {
       takeUntilDestroyed(),
     ).subscribe(({ room, error }) => {
       this.room.set(room);
+      // Extras remembered through the login detour are ticked again, if this room still offers them.
+      this.chosen.set(this.wantedExtras.filter(code => room?.extras?.some(extra => extra.code === code && !extra.included)));
       this.loadError.set(error);
       this.loading.set(false);
     });
@@ -89,9 +96,41 @@ export class RoomDetail {
     this.form.patchValue(pick);
   }
 
+  toggleExtra(code: string) {
+    this.chosen.update(codes => codes.includes(code) ? codes.filter(item => item !== code) : [...codes, code]);
+  }
+
+  /** The extras on a stay: the room's free bonuses plus the paid ones ticked, each with its cost. */
+  extraLines(room: Room, chosen: readonly string[], nightCount: number, guests: number) {
+    return (room.extras ?? [])
+      .filter(extra => extra.included || chosen.includes(extra.code))
+      .map(extra => ({
+        code: extra.code, name: extra.name, included: extra.included,
+        amount: extra.included ? 0 : extraAmount(extra, nightCount, guests),
+      }));
+  }
+
+  extrasTotal(room: Room, chosen: readonly string[], nightCount: number, guests: number) {
+    return this.extraLines(room, chosen, nightCount, guests).reduce((sum, line) => sum + line.amount, 0);
+  }
+
+  // Estimated total of the stay being filled in: the room for every night plus the ticked extras.
   estimate(room: Room) {
-    const { check_in, check_out } = this.form.getRawValue();
-    return this.nights(check_in, check_out) * Number(room.price_per_night);
+    const { check_in, check_out, guest_count } = this.form.getRawValue();
+    const nightCount = this.nights(check_in, check_out);
+    if (nightCount === 0) return 0;
+    return nightCount * Number(room.price_per_night) + this.extrasTotal(room, this.chosen(), nightCount, guest_count ?? 1);
+  }
+
+  extrasEstimate(room: Room) {
+    const { check_in, check_out, guest_count } = this.form.getRawValue();
+    return this.extrasTotal(room, this.chosen(), this.nights(check_in, check_out), guest_count ?? 1);
+  }
+
+  /** The total shown while reviewing: the room price at the checked dates plus the extras. */
+  reviewTotal(room: Room, stay: BookingInput) {
+    const nightCount = this.nights(stay.check_in, stay.check_out);
+    return nightCount * Number(this.reviewPrice()) + this.extrasTotal(room, stay.extras ?? [], nightCount, stay.guest_count);
   }
 
   reviewStay(room: Room) {
@@ -102,7 +141,10 @@ export class RoomDetail {
       this.error.set(translate('rd.errInvalid'));
       return;
     }
-    const input = { room: room.id, check_in, check_out, guest_count: guest_count! };
+    const input: BookingInput = {
+      room: room.id, check_in, check_out, guest_count: guest_count!,
+      ...(this.chosen().length ? { extras: [...this.chosen()] } : {}),
+    };
     this.busy.set(true);
     this.api.room(room.id, { check_in, check_out }).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: result => {
@@ -145,7 +187,10 @@ export class RoomDetail {
 
   private loginForStay(input: BookingInput) {
     const returnUrl = this.router.serializeUrl(this.router.createUrlTree(['/rooms', input.room], {
-      queryParams: { check_in: input.check_in, check_out: input.check_out, guests: input.guest_count },
+      queryParams: {
+        check_in: input.check_in, check_out: input.check_out, guests: input.guest_count,
+        ...(input.extras?.length ? { extras: input.extras.join(',') } : {}),
+      },
     }));
     void this.router.navigate(['/login'], { queryParams: { returnUrl } });
   }

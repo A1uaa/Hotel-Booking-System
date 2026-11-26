@@ -3,11 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiError, Booking, HotelApi, Payment } from '../core/api';
-import { translate, TranslatePipe } from '../core/i18n';
+import { ContentPipe, translate, TranslatePipe } from '../core/i18n';
 import { money, statusLabel } from '../shared/stay';
 
 @Component({
-  imports: [RouterLink, TranslatePipe],
+  imports: [RouterLink, TranslatePipe, ContentPipe],
   template: `
     <section class="shell section narrow">
       @if (loading()) { <p class="notice" role="status">{{ 'common.loadingRes' | t }}</p> }
@@ -18,7 +18,9 @@ import { money, statusLabel } from '../shared/stay';
           <h1>{{ headline(item) }}</h1>
           <p>{{ 'conf.statusIs' | t }} <strong>{{ label(item.status) }}</strong>.</p>
           <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ item.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ item.check_out }}</dd>
-            <dt>{{ 'common.guests' | t }}</dt><dd>{{ item.guest_count }}</dd><dt>{{ 'conf.finalTotal' | t }}</dt><dd>{{ money(item.total_price) }}</dd></dl>
+            <dt>{{ 'common.guests' | t }}</dt><dd>{{ item.guest_count }}</dd>
+            @for (extra of item.extras ?? []; track $index) { <dt>{{ extra.name | content }}</dt><dd>{{ extra.included ? ('ex.included' | t) : money(extra.amount) }}</dd> }
+            <dt>{{ 'conf.finalTotal' | t }}</dt><dd>{{ money(item.total_price) }}</dd></dl>
           @switch (item.payment_status) {
             @case ('paid') { <p class="notice success" role="status">{{ 'conf.paidFull' | t: { amount: money(item.paid_amount ?? item.total_price) } }}</p> }
             @case ('partial') { <p class="notice" role="status">{{ 'conf.partial' | t: { paid: money(item.paid_amount ?? 0), due: money(item.balance_due ?? 0) } }}</p> }

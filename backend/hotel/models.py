@@ -112,6 +112,67 @@ class Booking(models.Model):
         return f"Booking {self.pk} for {self.room}"
 
 
+class Extra(models.Model):
+    """An optional service guests can add to a stay, such as breakfast or parking."""
+
+    class Unit(models.TextChoices):
+        PER_STAY = "per_stay", "Per stay"
+        PER_NIGHT = "per_night", "Per night"
+        PER_GUEST_NIGHT = "per_guest_night", "Per guest, per night"
+
+    code = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=200, blank=True, default="")
+    unit = models.CharField(max_length=20, choices=Unit.choices, default=Unit.PER_STAY)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ExtraPrice(models.Model):
+    """What an extra costs for one room type. `included` makes it a free bonus of that room type.
+
+    Prices follow the level of the room: the same breakfast can cost 4,500 in a Standard Room,
+    less in a Deluxe Room and nothing in the top suites.
+    """
+
+    extra = models.ForeignKey(Extra, on_delete=models.CASCADE, related_name="prices")
+    room_type = models.ForeignKey(RoomType, on_delete=models.CASCADE, related_name="extra_prices")
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    included = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(price__gte=0), name="extra_price_nonnegative"),
+            models.UniqueConstraint(fields=["extra", "room_type"], name="one_price_per_extra_and_room_type"),
+        ]
+
+    def __str__(self):
+        return f"{self.extra} for {self.room_type}"
+
+
+class BookingExtra(models.Model):
+    """An extra on a booking. The name and price are copied so later price changes never alter it."""
+
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="extras")
+    extra = models.ForeignKey(Extra, null=True, blank=True, on_delete=models.SET_NULL, related_name="booking_extras")
+    name = models.CharField(max_length=100)
+    unit = models.CharField(max_length=20, choices=Extra.Unit.choices)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    included = models.BooleanField(default=False)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gte=0), name="booking_extra_amount_nonnegative"),
+            models.UniqueConstraint(fields=["booking", "extra"], name="one_booking_extra_per_extra"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} on booking {self.booking_id}"
+
+
 class Payment(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"

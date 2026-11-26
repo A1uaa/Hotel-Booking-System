@@ -18,6 +18,14 @@ const room: Room = {
   description: 'Twin room', price_per_night: '29000.00', capacity: 2,
   amenities: ['Wi-Fi'], images: [], available: true,
 };
+const withExtras: Room = {
+  ...room,
+  extras: [
+    { code: 'parking', name: 'Parking', description: 'A reserved space.', unit: 'per_night', price: '0.00', included: true },
+    { code: 'breakfast', name: 'Breakfast', description: 'Buffet breakfast.', unit: 'per_guest_night', price: '4500.00', included: false },
+    { code: 'airport-transfer', name: 'Airport transfer', description: 'A car from the airport.', unit: 'per_stay', price: '12000.00', included: false },
+  ],
+};
 const availability: RoomAvailability = { room: 3, bookable: true, booked: [] };
 const emptyBreakdown = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
 const noReviews: RoomReviews = { room: 3, count: 0, average: null, breakdown: emptyBreakdown, reviews: [] };
@@ -103,6 +111,76 @@ describe('Customer pages and the hotel API', () => {
     expect(navigate).not.toHaveBeenCalled();
     submit.flush(booking, { status: 201, statusText: 'Created' });
     expect(navigate).toHaveBeenCalledWith(['/bookings', booking.id, 'payment']);
+  });
+
+  function openWithExtras() {
+    const fixture = TestBed.createComponent(RoomDetail);
+    fixture.detectChanges();
+    http.expectOne('/api/rooms/3/').flush(withExtras);
+    http.expectOne('/api/rooms/3/availability/').flush(availability);
+    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
+    fixture.componentInstance.form.setValue({ check_in: start, check_out: end, guest_count: 2 });
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('shows the extras of the room as checkboxes, with the free bonus already ticked', () => {
+    const fixture = openWithExtras();
+    const boxes = Array.from(fixture.nativeElement.querySelectorAll('.extra input')) as HTMLInputElement[];
+    expect(boxes).toHaveLength(3);
+    expect(boxes.map(box => box.checked)).toEqual([true, false, false]);
+    expect(boxes.map(box => box.disabled)).toEqual([true, false, false]);
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Included');
+    expect(text).toContain('Breakfast');
+    expect(text).toContain('4,500');
+    expect(text).toContain('per guest, per night');
+  });
+
+  it('adds the ticked extras to the estimated total', () => {
+    const fixture = openWithExtras();
+    const page = fixture.componentInstance;
+    expect(page.estimate(withExtras)).toBe(58000); // 2 nights, no paid extras
+    page.toggleExtra('breakfast'); // 4,500 x 2 nights x 2 guests = 18,000
+    page.toggleExtra('airport-transfer'); // 12,000 once
+    expect(page.estimate(withExtras)).toBe(58000 + 18000 + 12000);
+    expect(page.extrasEstimate(withExtras)).toBe(30000);
+    page.toggleExtra('breakfast');
+    expect(page.estimate(withExtras)).toBe(58000 + 12000);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('70,000');
+  });
+
+  it('sends the codes of the ticked extras, and none when nothing is ticked', () => {
+    const fixture = openWithExtras();
+    const page = fixture.componentInstance;
+    page.toggleExtra('breakfast');
+    page.reviewStay(withExtras);
+    http.expectOne(request => request.url === '/api/rooms/3/' && request.params.get('check_in') === start).flush(withExtras);
+    expect(page.review()).toEqual({ room: 3, check_in: start, check_out: end, guest_count: 2, extras: ['breakfast'] });
+    expect(page.reviewTotal(withExtras, page.review()!)).toBe(58000 + 18000);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Breakfast');
+    expect(text).toContain('Parking'); // the free bonus is listed on the review too
+    expect(text).toContain('76,000');
+  });
+
+  it('lists the extras of a booking with the free ones marked included', () => {
+    const fixture = TestBed.createComponent(Bookings);
+    fixture.detectChanges();
+    http.expectOne('/api/bookings/').flush([{
+      ...booking, total_price: '76000.00', extras: [
+        { name: 'Parking', unit: 'per_night', unit_price: '0.00', included: true, amount: '0.00' },
+        { name: 'Breakfast', unit: 'per_guest_night', unit_price: '4500.00', included: false, amount: '18000.00' },
+      ],
+    }]);
+    http.expectOne('/api/rooms/3/').flush(withExtras);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Parking');
+    expect(text).toContain('Included');
+    expect(text).toContain('18,000');
   });
 
   it('keeps the review open and displays a booking conflict', () => {

@@ -17,7 +17,9 @@
           <p class="eyebrow">{{ 'bk.res' | t: { id: booking.id } }}</p>
           <h2>{{ rooms()[booking.room]?.room_type?.name ? (rooms()[booking.room]!.room_type.name | content) : ('bk.roomRes' | t) }}</h2>
           @if (rooms()[booking.room]; as room) { <a class="text-link" [routerLink]="['/rooms', room.id]">{{ 'common.room' | t: { number: room.room_number } }} ↗</a> }
-          <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ booking.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ booking.check_out }}</dd><dt>{{ 'common.guests' | t }}</dt><dd>{{ booking.guest_count }}</dd><dt>{{ 'common.total' | t }}</dt><dd>{{ money(booking.total_price) }}</dd>
+          <dl class="facts"><dt>{{ 'common.checkin' | t }}</dt><dd>{{ booking.check_in }}</dd><dt>{{ 'common.checkout' | t }}</dt><dd>{{ booking.check_out }}</dd><dt>{{ 'common.guests' | t }}</dt><dd>{{ booking.guest_count }}</dd>
+            @for (extra of booking.extras ?? []; track $index) { <dt>{{ extra.name | content }}</dt><dd>{{ extra.included ? ('ex.included' | t) : money(extra.amount) }}</dd> }
+            <dt>{{ 'common.total' | t }}</dt><dd>{{ money(booking.total_price) }}</dd>
             @if (booking.status !== 'cancelled' && booking.paid_amount && booking.paid_amount !== '0.00') { <dt>{{ 'bk.paid' | t }}</dt><dd>{{ money(booking.paid_amount) }}</dd> }
             @if (booking.status !== 'cancelled' && booking.balance_due && booking.balance_due !== '0.00') { <dt>{{ 'bk.balance' | t }}</dt><dd>{{ money(booking.balance_due) }}</dd> }</dl>
         </div>

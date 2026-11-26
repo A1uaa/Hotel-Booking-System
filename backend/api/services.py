@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 
-from hotel.models import Booking, Payment, Review, Room
+from hotel.models import Booking, BookingExtra, Extra, ExtraPrice, Payment, Review, Room
 
 
 class Conflict(APIException):
@@ -38,24 +38,61 @@ def handle_database_contention(view):
     return wrapped
 
 
+def extra_amount(unit, unit_price, nights, guests):
+    """What one extra costs for a stay: once, for every night, or for every guest on every night."""
+    if unit == Extra.Unit.PER_NIGHT:
+        return unit_price * nights
+    if unit == Extra.Unit.PER_GUEST_NIGHT:
+        return unit_price * nights * guests
+    return unit_price
+
+
 @transaction.atomic
-def create_booking(user, *, room, check_in, check_out, guest_count):
-    room = get_object_or_404(Room, pk=room)
+def create_booking(user, *, room, check_in, check_out, guest_count, extras=()):
+    """Book a room. `extras` are codes of optional paid extras the guest ticked.
+
+    The extras that the room's type includes for free are always added at no charge, and
+    the room's own price list decides what each ticked extra costs.
+    """
+    room = get_object_or_404(Room.objects.select_related("room_type"), pk=room)
     if room.status != Room.Status.AVAILABLE:
         raise Conflict("This room is unavailable for booking.")
     if Booking.overlapping(check_in, check_out).filter(room=room).exists():
         raise Conflict()
 
+    offers = {
+        offer.extra.code: offer
+        for offer in ExtraPrice.objects.filter(room_type=room.room_type, extra__is_active=True).select_related("extra")
+    }
+    unknown = sorted(set(extras) - set(offers))
+    if unknown:
+        raise ValidationError({"extras": "These extras are not offered for this room: " + ", ".join(unknown) + "."})
+
+    nights = (check_out - check_in).days
+    lines = []
+    for code, offer in offers.items():
+        if offer.included:
+            lines.append((offer, ZERO, ZERO, True))
+        elif code in extras:
+            lines.append((offer, offer.price, extra_amount(offer.extra.unit, offer.price, nights, guest_count), False))
+
     booking = Booking(
         user=user, room=room, check_in=check_in, check_out=check_out,
         guest_count=guest_count, price_per_night=room.price_per_night,
-        total_price=room.price_per_night * (check_out - check_in).days,
+        total_price=room.price_per_night * nights + sum((line[2] for line in lines), ZERO),
     )
     try:
         booking.full_clean()
     except ModelValidationError as exc:
         raise ValidationError(exc.message_dict) from exc
     booking.save()
+    BookingExtra.objects.bulk_create([
+        BookingExtra(
+            booking=booking, extra=offer.extra, name=offer.extra.name, unit=offer.extra.unit,
+            unit_price=unit_price, included=included, amount=amount,
+        )
+        for offer, unit_price, amount, included in lines
+    ])
     return booking
 
 

@@ -70,6 +70,9 @@ export const RU: Record<string, string> = {
   'rd.errGuests': 'В этом номере не поместится столько гостей.',
   'rd.errCheck': ' Прежде чем отправлять повторно, проверьте раздел «Мои брони».',
 
+  'ex.title': 'Дополнительные услуги', 'ex.included': 'Включено', 'ex.sub': 'Услуги',
+  'ex.unit.per_stay': 'за проживание', 'ex.unit.per_night': 'за ночь', 'ex.unit.per_guest_night': 'с гостя за ночь',
+
   'rs.avg': 'Средняя оценка', 'rs.none': 'Оценок пока нет', 'rs.aria': 'Средняя оценка {value} из 5',
   'rs.breakdown': 'Распределение оценок', 'rs.gave': 'отзывов с оценкой {star}',
   'stars.label': '{value} из 5 звёзд', 'stars.input': 'Оценка',

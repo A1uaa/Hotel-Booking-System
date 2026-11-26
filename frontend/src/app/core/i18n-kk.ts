@@ -68,6 +68,9 @@ export const KK: Record<string, string> = {
   'rd.errGuests': 'Бұл бөлмеге мұнша қонақ сыймайды.',
   'rd.errCheck': ' Қайта жібермес бұрын «Брондарым» бөлімін тексеріңіз.',
 
+  'ex.title': 'Қосымша қызметтер', 'ex.included': 'Қосылған', 'ex.sub': 'Қызметтер',
+  'ex.unit.per_stay': 'қонақтауға', 'ex.unit.per_night': 'түніне', 'ex.unit.per_guest_night': 'қонаққа түніне',
+
   'rs.avg': 'Орташа баға', 'rs.none': 'Әзірге баға жоқ', 'rs.aria': 'Орташа баға: 5-тен {value}',
   'rs.breakdown': 'Бағалардың таралуы', 'rs.gave': 'пікір {star} баға қойған',
   'stars.label': '5 жұлдыздың {value}-і', 'stars.input': 'Баға',

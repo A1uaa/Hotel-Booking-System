@@ -184,7 +184,7 @@ def photo_detail(request, pk, photo_id):
 
 def managed_bookings():
     return with_payment_totals(
-        Booking.objects.select_related("user", "room__room_type")
+        Booking.objects.select_related("user", "room__room_type").prefetch_related("extras")
     ).order_by("-check_in", "-pk")
 
 

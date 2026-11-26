@@ -142,5 +142,6 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {'payments': '20/min', 'reviews': '10/hour'},
 }
 
+
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key", "accept-language")

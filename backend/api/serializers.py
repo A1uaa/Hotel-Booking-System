@@ -6,7 +6,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from rest_framework import serializers
 
-from hotel.models import Booking, ContactMessage, Payment, Review, Room, RoomImage, RoomType
+from hotel.models import Booking, BookingExtra, ContactMessage, Payment, Review, Room, RoomImage, RoomType
 
 from .services import payment_summary, round_average
 
@@ -92,13 +92,26 @@ class RoomSerializer(serializers.ModelSerializer):
     available = serializers.BooleanField()
     rating_average = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
+    extras = serializers.SerializerMethodField()
 
     class Meta:
         model = Room
         fields = (
             "id", "room_number", "room_type", "description", "price_per_night",
-            "capacity", "amenities", "images", "available", "rating_average", "rating_count",
+            "capacity", "amenities", "images", "available", "rating_average", "rating_count", "extras",
         )
+
+    def get_extras(self, room):
+        """The extras of this room's type: free bonuses first, then the paid ones with their price."""
+        offers = [offer for offer in room.room_type.extra_prices.all() if offer.extra.is_active]
+        offers.sort(key=lambda offer: (not offer.included, offer.extra_id))
+        return [
+            {
+                "code": offer.extra.code, "name": offer.extra.name, "description": offer.extra.description,
+                "unit": offer.extra.unit, "price": f"{offer.price:.2f}", "included": offer.included,
+            }
+            for offer in offers
+        ]
 
     # Annotated by with_ratings(); a room that was not annotated simply has no rating yet.
     def get_rating_average(self, room):
@@ -111,6 +124,10 @@ class RoomSerializer(serializers.ModelSerializer):
 class BookingInputSerializer(StaySerializer):
     room = serializers.IntegerField(min_value=1, max_value=2**63 - 1)
     guest_count = serializers.IntegerField(min_value=1, max_value=32767)
+    # Codes of the optional extras the guest ticked; the server prices them.
+    extras = serializers.ListField(
+        child=serializers.SlugField(max_length=50), required=False, default=list, max_length=20,
+    )
 
 
 class PaymentSummaryMixin:
@@ -125,12 +142,20 @@ class PaymentSummaryMixin:
         return data
 
 
+class BookingExtraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingExtra
+        fields = ("name", "unit", "unit_price", "included", "amount")
+
+
 class BookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
+    extras = BookingExtraSerializer(many=True, read_only=True)
+
     class Meta:
         model = Booking
         fields = (
             "id", "room", "check_in", "check_out", "guest_count",
-            "price_per_night", "total_price", "status", "created_at", "updated_at",
+            "price_per_night", "total_price", "extras", "status", "created_at", "updated_at",
         )
 
 

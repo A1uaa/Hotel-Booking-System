@@ -13,6 +13,7 @@ export interface Room {
   available: boolean;
   // Average (one decimal) and number of visible reviews; the API always sends them.
   rating_average?: number | null; rating_count?: number;
+  extras?: RoomExtra[];
 }
 export interface Stay { check_in: string; check_out: string; }
 export interface Review { id: number; rating: number; comment: string; author: string; created_at: string; verified_stay?: boolean; }
@@ -25,9 +26,15 @@ export interface RoomAvailability { room: number; bookable: boolean; booked: Sta
 export interface RoomFilters extends Partial<Stay> {
   guests?: number; room_type?: number; min_price?: number; max_price?: number;
 }
-export interface BookingInput extends Stay { room: number; guest_count: number; }
+// `extras` are the codes of the optional extras the guest ticked; the server prices them.
+export interface BookingInput extends Stay { room: number; guest_count: number; extras?: string[]; }
+export type ExtraUnit = 'per_stay' | 'per_night' | 'per_guest_night';
+// An extra offered with a room. Its price follows the room's level; `included` means it is free.
+export interface RoomExtra { code: string; name: string; description: string; unit: ExtraUnit; price: string; included: boolean; }
+export interface BookingExtra { name: string; unit: ExtraUnit; unit_price: string; included: boolean; amount: string; }
 export type PaymentState = 'unpaid' | 'partial' | 'pay_at_hotel' | 'paid' | 'refunded';
-export interface Booking extends BookingInput {
+export interface Booking extends Omit<BookingInput, 'extras'> {
+  extras?: BookingExtra[];
   id: number; price_per_night: string; total_price: string; created_at: string; updated_at: string;
   status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
   // Money position, always sent by the API.
