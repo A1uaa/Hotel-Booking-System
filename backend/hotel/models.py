@@ -210,12 +210,9 @@ class Payment(models.Model):
 
 
 class Review(models.Model):
-    """Feedback on a room: 1-5 stars and an optional comment.
+    """Room feedback, optionally linked to a verified completed stay."""
 
-    Anyone may leave one, with or without an account, and without a booking. A signed-in user can
-    review a room once. A hidden review stays stored but is not shown on the site or counted.
-    """
-
+    booking = models.OneToOneField(Booking, null=True, blank=True, on_delete=models.PROTECT, related_name="review")
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="reviews")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviews",
@@ -230,10 +227,14 @@ class Review(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(condition=models.Q(rating__gte=1, rating__lte=5), name="review_rating_between_1_and_5"),
-            models.UniqueConstraint(
-                fields=["room", "user"], condition=models.Q(user__isnull=False), name="one_review_per_user_per_room",
-            ),
+
         ]
+
+    def clean(self):
+        super().clean()
+        if self.booking_id:
+            if self.booking.status != Booking.Status.CHECKED_OUT or self.booking.user_id != self.user_id or self.booking.room_id != self.room_id:
+                raise ValidationError({"booking": "A review must match the owner's completed stay."})
 
     def __str__(self):
         return f"Review {self.pk} of {self.room}"
@@ -248,3 +249,52 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return self.subject
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+    phone = models.CharField(max_length=30, blank=True)
+    photo = models.ImageField(upload_to="profiles/", blank=True)
+    preferred_language = models.CharField(max_length=2, choices=[("en", "English"), ("ru", "Русский"), ("kk", "Қазақша")], default="en")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class Favorite(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorites")
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "room"], name="unique_favorite")]
+
+class AuditLog(models.Model):
+    administrator = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=60, db_index=True)
+    entity_type = models.CharField(max_length=40)
+    entity_id = models.CharField(max_length=40)
+    description = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    class Meta:
+        default_permissions = ("view",)
+        ordering = ["-created_at", "-pk"]
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    event_key = models.CharField(max_length=200)
+    kind = models.CharField(max_length=60)
+    parameters = models.JSONField(default=dict)
+    path = models.CharField(max_length=120)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["recipient", "event_key"], name="unique_recipient_event")]
+        indexes = [models.Index(fields=["recipient", "is_read", "-created_at"])]
+
+class PaymentReceipt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    key = models.CharField(max_length=100)
+    path = models.CharField(max_length=200)
+    response = models.JSONField()
+    status_code = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "key", "path"], name="unique_payment_request")]

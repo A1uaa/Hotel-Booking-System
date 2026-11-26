@@ -1,9 +1,10 @@
+import { Member } from '../core/member';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { API_BASE, Booking, Room, RoomAvailability, RoomReviews } from '../core/api';
 import { Auth } from '../core/auth';
 import { FeedbackForm } from '../shared/feedback-form';
@@ -44,12 +45,13 @@ describe('Customer pages and the hotel API', () => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        {provide:Member,useValue:{favorites:()=>of([])}},
         { provide: API_BASE, useValue: '/api/' },
         { provide: ActivatedRoute, useValue: {
           queryParamMap: params, paramMap: new BehaviorSubject(convertToParamMap({ id: room.id })),
           snapshot: { queryParamMap: convertToParamMap({}) },
         } },
-        { provide: Auth, useValue: { user: () => ({ id: 1 }), expire: () => {} } },
+        { provide: Auth, useValue: { user: () => ({ id: 1 }), restore: () => of({id:1}), expire: () => {} } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -247,7 +249,7 @@ describe('Customer pages and the hotel API', () => {
     expect(text).toContain('4.5');
     expect(text).toContain('2 reviews');
     expect(text).toContain('50%'); // half of the guests gave 5 stars
-    expect(text).toContain('How was your experience?');
+    expect(text).toContain('You can leave a review after completing your stay.');
     expect(text).toContain('Quiet and spotless.');
     expect(text).toContain('Aida');
     expect(fixture.nativeElement.querySelector('app-rating-summary')).not.toBeNull();
@@ -274,12 +276,12 @@ describe('Customer pages and the hotel API', () => {
     expect(broken.nativeElement.querySelector('form')).not.toBeNull();
   });
 
-  it('lets anyone leave feedback on the room page and shows it at once', () => {
+  it('lets an eligible guest leave feedback on the room page and shows it at once', () => {
     const fixture = TestBed.createComponent(RoomDetail);
     fixture.detectChanges();
     http.expectOne('/api/rooms/3/').flush(room);
     http.expectOne('/api/rooms/3/availability/').flush(availability);
-    http.expectOne('/api/rooms/3/reviews/').flush(noReviews);
+    http.expectOne('/api/rooms/3/reviews/').flush({...noReviews,eligible:[{id:11,check_in:start,check_out:end}]});
     fixture.detectChanges();
     const form = fixture.debugElement.query(By.directive(FeedbackForm)).componentInstance as FeedbackForm;
     form.rating.set(5);
@@ -289,7 +291,7 @@ describe('Customer pages and the hotel API', () => {
     http.expectOne('/api/auth/csrf/').flush({ csrf_token: 'feedback-token' });
     const submit = http.expectOne('/api/rooms/3/reviews/');
     expect(submit.request.method).toBe('POST');
-    expect(submit.request.body).toEqual({ rating: 5, comment: 'Great room', name: 'Aida' });
+    expect(submit.request.body).toEqual({ booking:11, rating: 5, comment: 'Great room', name: 'Aida' });
     expect(submit.request.headers.get('X-CSRFToken')).toBe('feedback-token');
     const created = { id: 1, rating: 5, comment: 'Great room', author: 'Aida', created_at: '2026-11-18T10:00:00+05:00' };
     submit.flush({

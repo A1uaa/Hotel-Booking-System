@@ -1,47 +1,49 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { money } from '../../shared/stay';
+import { TranslatePipe } from '../../core/i18n';
 import { AdminApi, Dashboard } from './admin-api';
 import { StaffSession } from './admin-session';
 import { resource } from './admin-state';
 
 @Component({
-  imports: [RouterLink],
+  imports: [FormsModule, TranslatePipe],
   template: `
-    <div class="staff-heading"><div><p class="eyebrow">Operations overview</p><h1>Hotel dashboard</h1><p>Room inventory, arrivals, and departures in Almaty time.</p></div>
-      @if (can()?.reservations) { <a class="button" routerLink="/admin/front-desk">Open front desk ↗</a> }
-    </div>
-    @if (!can()?.dashboard) {
-      <p class="notice">Select an authorized section from the menu. Overview statistics require room, booking, and payment access.</p>
-    } @else if (result.loading()) { <p class="notice" role="status">Loading overview…</p> }
-    @else if (result.error()) { <p class="notice error" role="alert">{{ result.error() }}</p><button class="button outline" (click)="load()">Retry</button> }
-    @else if (result.data(); as row) {
-      <div class="staff-date"><span>HOTEL DATE</span> {{ row.date }}</div>
-      <div class="staff-metrics">
-        @for (card of cards; track card.key) {
-          <article class="staff-metric"><p>{{ card.title }}</p><strong>{{ row[card.key] }}</strong><small>{{ card.hint }}</small></article>
-        }
-        <article class="staff-metric"><p>Awaiting payment</p><strong>{{ row.pending_payments ?? 0 }}</strong><small>{{ money(row.pending_amount ?? 0) }} to collect at the hotel</small></article>
-        <article class="staff-metric staff-revenue"><p>Total revenue</p><strong>{{ money(row.revenue) }}</strong><small>Paid amounts and completed stays without payment records</small></article>
-      </div>
+    <div class="staff-heading"><div><h1>{{ 'member.dashboard' | t }}</h1></div></div>
+    @if (can()?.dashboard) {
+      <form class="staff-filters" (submit)="$event.preventDefault(); load()">
+        <label>{{ 'member.selectedDate' | t }}<input type="date" [(ngModel)]="selected" name="date" /></label>
+        <button class="button">{{ 'member.search' | t }}</button>
+        <button type="button" class="plain-button" (click)="selected=''; load()">{{ 'member.today' | t }}</button>
+      </form>
+      @if (result.loading() && !result.data()) { <p role="status">{{ 'member.loading' | t }}</p> }
+      @if (result.error()) { <p class="notice error" role="alert">{{ result.error() }}</p> }
+      @if (result.data(); as row) {
+        <p class="staff-date">{{ 'member.hotelDate' | t }} {{ row.date }} · {{ 'member.selectedDate' | t }} {{ row.selected_date || row.date }}</p>
+        <div class="staff-metrics">
+          @for (card of cards; track card) {
+            <article class="staff-metric"><p>{{ 'metric.' + card | t }}</p><strong>{{ row[card] ?? 0 }}</strong></article>
+          }
+          <article class="staff-metric"><p>{{ 'member.awaiting' | t }}</p><strong>{{ row.pending_payments ?? 0 }}</strong><small>{{ money(row.pending_amount ?? 0) }}</small></article>
+          <article class="staff-metric staff-revenue"><p>{{ 'member.revenue' | t }}</p><strong>{{ money(row.revenue) }}</strong></article>
+        </div>
+      }
     }
   `,
 })
 export class AdminOverview {
   private readonly api = inject(AdminApi);
-  readonly can = () => this.staff.current()?.capabilities;
   private readonly staff = inject(StaffSession);
+  readonly can = () => this.staff.current()?.capabilities;
   readonly result = resource<Dashboard>();
   readonly money = money;
-  readonly cards = [
-    { key: 'total_rooms', title: 'Total rooms', hint: 'All inventory' },
-    { key: 'available_rooms', title: 'Available rooms', hint: 'In service and unoccupied' },
-    { key: 'occupied_rooms', title: 'Occupied rooms', hint: 'Currently checked in' },
-    { key: 'arrivals', title: 'Today’s arrivals', hint: 'Confirmed and processed arrivals' },
-    { key: 'departures', title: 'Today’s departures', hint: 'Scheduled departures' },
-    { key: 'active_reservations', title: 'Active reservations', hint: 'Pending, confirmed, or checked in' },
-  ] as const;
-  constructor() { if (this.can()?.dashboard) this.load(); }
-  load() { this.result.load(this.api.dashboard()); }
+  selected = '';
+  readonly cards = ['total_rooms','available_rooms','reserved_rooms','occupied_rooms','out_of_service_rooms','arrivals','departures','active_reservations'] as const;
+  constructor() {
+    if (this.can()?.dashboard) this.load();
+    interval(60000).pipe(takeUntilDestroyed()).subscribe(() => { if (this.can()?.dashboard) this.load(); });
+  }
+  load() { this.result.load(this.api.dashboard(this.selected)); }
 }
-

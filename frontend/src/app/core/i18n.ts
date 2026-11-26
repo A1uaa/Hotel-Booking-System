@@ -1,3 +1,4 @@
+import { MEMBER } from './i18n-member';
 import { Pipe, PipeTransform, signal } from '@angular/core';
 import { CONTENT } from './i18n-content';
 import { EN } from './i18n-en';
@@ -36,7 +37,7 @@ export type Params = Record<string, string | number>;
  */
 export function translate(key: string, params: Params = {}): string {
   const lang = language();
-  const table = TABLES[lang];
+  const table = {...TABLES[lang], ...MEMBER[lang]};
   const count = params['count'];
   const plural = typeof count === 'number'
     ? table[`${key}.${new Intl.PluralRules(lang).select(count)}`] ?? table[`${key}.other`] : undefined;

@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { inject, Injectable, InjectionToken } from '@angular/core';
-import { switchMap } from 'rxjs';
-import { translate } from './i18n';
+import { inject, Injectable, InjectionToken, untracked } from '@angular/core';
+import { Subject, switchMap, tap } from 'rxjs';
+import { language, translate } from './i18n';
 
 export interface Account { id: number; email: string; role: 'Guest' | 'Admin'; }
 export interface Credentials { email: string; password: string; }
@@ -16,12 +16,12 @@ export interface Room {
   extras?: RoomExtra[];
 }
 export interface Stay { check_in: string; check_out: string; }
-export interface Review { id: number; rating: number; comment: string; author: string; created_at: string; }
+export interface Review { id: number; rating: number; comment: string; author: string; created_at: string; verified_stay?: boolean; }
 // `breakdown` maps each star rating "1".."5" to how many reviews gave it.
 export interface RoomReviews {
-  room: number; count: number; average: number | null; breakdown: Record<string, number>; reviews: Review[];
+  eligible?: {id:number;check_in:string;check_out:string}[]; room: number; count: number; average: number | null; breakdown: Record<string, number>; reviews: Review[];
 }
-export interface ReviewInput { rating: number; comment: string; name: string; }
+export interface ReviewInput { rating: number; comment: string; name: string; booking?: number; }
 export interface RoomAvailability { room: number; bookable: boolean; booked: Stay[]; }
 export interface RoomFilters extends Partial<Stay> {
   guests?: number; room_type?: number; min_price?: number; max_price?: number;
@@ -53,12 +53,15 @@ export interface Payment {
 }
 export interface ContactInput { name: string; email: string; subject: string; message: string; }
 
+declare const HOTEL_API_URL: string | undefined;
+
 export const API_BASE = new InjectionToken<string>('Hotel API URL', {
-  providedIn: 'root', factory: () => 'http://localhost:8000/api/',
+  providedIn: 'root', factory: () => typeof HOTEL_API_URL === 'undefined' ? 'http://localhost:8000/api/' : HOTEL_API_URL,
 });
 
 @Injectable({ providedIn: 'root' })
 export class HotelApi {
+  readonly changes = new Subject<void>();
   private readonly http = inject(HttpClient);
   private readonly base = inject(API_BASE);
 
@@ -79,25 +82,25 @@ export class HotelApi {
   book(data: BookingInput) { return this.post<Booking>('bookings/', data); }
   cancel(id: number) { return this.post<Booking>('bookings/' + id + '/cancel/', {}); }
   payments(id: number) { return this.get<Payment[]>('bookings/' + id + '/payments/'); }
-  pay(id: number, data: PaymentInput) {
-    return this.post<{ payment: Payment; booking: Booking }>('bookings/' + id + '/pay/', data);
+  pay(id: number, data: PaymentInput, key?: string) {
+    return this.post<{ payment: Payment; booking: Booking }>('bookings/' + id + '/pay/', data, key ? {'Idempotency-Key':key} : {});
   }
   contact(data: ContactInput) { return this.post<{ id: number }>('contact/', data); }
 
   get<T>(path: string, params: Record<string, string | number> = {}) {
-    return this.http.get<T>(this.base + path, { params, withCredentials: true });
+    return this.http.get<T>(this.base + path, { params, withCredentials: true, headers: {'Accept-Language':untracked(language)} });
   }
 
-  post<T>(path: string, body: object) { return this.write<T>('POST', path, body); }
+  post<T>(path: string, body: object, headers: Record<string,string> = {}) { return this.write<T>('POST', path, body, headers); }
   patch<T>(path: string, body: object) { return this.write<T>('PATCH', path, body); }
   delete<T>(path: string) { return this.write<T>('DELETE', path); }
 
-  private write<T>(method: string, path: string, body?: object) {
+  private write<T>(method: string, path: string, body?: object, headers: Record<string,string> = {}) {
     // A fresh token also handles rotation at login or in another browser tab.
     return this.get<{ csrf_token: string }>('auth/csrf/').pipe(
       switchMap(({ csrf_token }) => this.http.request<T>(method, this.base + path, { body,
-        withCredentials: true, headers: { 'X-CSRFToken': csrf_token },
-      })),
+        withCredentials: true, headers: { ...headers, 'Accept-Language':untracked(language), 'X-CSRFToken': csrf_token },
+      }).pipe(tap(() => this.changes.next()))),
     );
   }
 }
@@ -108,10 +111,19 @@ export function apiError(error: unknown): string {
   const body: unknown = error.error;
   if (body && typeof body === 'object') {
     const messages = Object.entries(body).flatMap(([key, value]) => {
-      const label = key.replaceAll('_', ' ');
+      const fields: Record<string, string> = {
+        first_name: 'first', last_name: 'last', phone: 'phone', photo: 'photo',
+        current_password: 'current_password', new_password: 'new_password', confirmation: 'confirmation',
+      };
+      const field = fields[key];
+      const label = field ? translate('member.' + field) : key.replaceAll('_', ' ');
       const items = Array.isArray(value) ? value : [value];
       return items.filter((item): item is string => typeof item === 'string')
-        .map(item => key === 'detail' || key === 'non_field_errors' ? item : label + ' — ' + item);
+        .map(item => {
+          const localized = translate('api.' + item);
+          const message = localized === 'api.' + item ? item : localized;
+          return key === 'detail' || key === 'non_field_errors' ? message : label + ' — ' + message;
+        });
     });
     if (messages.length) return messages.join(' ');
   }

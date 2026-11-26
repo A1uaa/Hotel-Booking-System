@@ -16,7 +16,7 @@ Development base URL: `http://localhost:8000/api/`. Send JSON with `Content-Type
 | GET `rooms/{id}/` | Public | 200, room details and availability |
 | GET `rooms/{id}/availability/` | Public | 200, occupied date ranges for the room calendar |
 | GET `rooms/{id}/reviews/` | Public | 200, visible reviews with count, average and per-star breakdown |
-| POST `rooms/{id}/reviews/` | Public (CSRF, rate limited) | 201, refreshed review list plus the new `review`; 409 if a signed-in user already reviewed the room |
+| POST `rooms/{id}/reviews/` | Session, CSRF, eligible completed stay | 201, refreshed reviews; 409 for a duplicate booking review |
 | GET `bookings/` | Session | 200, array of the current user's bookings |
 | POST `bookings/` | Session + CSRF | 201, new booking |
 | GET `bookings/{id}/` | Session and owner | 200, booking details |
@@ -93,7 +93,7 @@ Every room in `GET /api/rooms/` and `GET /api/rooms/{id}/` carries `rating_avera
 {"room": 3, "count": 2, "average": 4.5, "breakdown": {"1": 0, "2": 0, "3": 0, "4": 1, "5": 1}, "reviews": [{"id": 7, "rating": 5, "comment": "Quiet and clean.", "author": "Aida", "created_at": "2027-05-13T09:12:00+05:00"}]}
 ```
 
-`POST /api/rooms/{id}/reviews/` with `{"rating": 1-5, "comment": "optional, up to 2000 characters", "name": "optional, up to 80 characters"}` lets **anyone** leave feedback, signed in or not, with no booking needed. It returns `201` with the same body as the `GET` above plus the new `review`. The shown name is `name`, else the account's first name, else `Guest`. A signed-in user can review a room once (`409` afterwards); visitors are limited only by the rate limit (`reviews` in `DEFAULT_THROTTLE_RATES`, 10 posts per hour per user or IP, `429` beyond it). Like every write it needs the CSRF token from `auth/csrf/`.
+`POST /api/rooms/{id}/reviews/` accepts `{"booking": 42, "rating": 5, "comment": "Quiet and clean."}`. The authenticated owner must have checked out from that room. One review is allowed per booking. The backend derives the author and Verified Stay. The response is 201 with the refreshed list and new review. Posting remains rate limited to 10 attempts per hour, and requires CSRF.
 
 Reviews never expose an email or account id. Staff can hide a review from the public site under `admin/reviews/` (see below); hidden reviews are not shown or counted.
 
@@ -211,7 +211,40 @@ Check-in requires the scheduled arrival date in Almaty, an operational room, and
 
 ### Reporting definitions
 
-- Current occupancy counts distinct rooms with a checked-in reservation. Current availability counts operational rooms without a checked-in reservation.
+- Current occupancy counts distinct rooms with a checked-in reservation. Availability on the selected date excludes nonoperational rooms, blocking scheduled stays, and rooms with a guest still checked in.
 - Reports count reservations whose stays overlap the inclusive date range. Reserved occupancy uses confirmed, checked-in, and checked-out room nights, clipped to the range with checkout excluded. The denominator uses today's room inventory across the selected days. Historical room inventory and maintenance schedules are not recorded.
 - Revenue sums paid payments, plus checked-out booking totals for bookings without payment records. Reports date paid amounts by payment creation and completed-booking totals by scheduled checkout. Refunded payments are excluded. This is an operational estimate based on current records, not a financial ledger.
 - Popularity counts overlapping, non-cancelled reservations by the room's current type. Report periods are limited to 366 days. Management lists currently return all matching records.
+
+## Account and event APIs
+
+All account paths require a Django session. All writes require X-CSRFToken as before. Profile email and role are read-only. Profile update accepts first_name, last_name, phone, preferred_language. Language values are en, ru, kk.
+
+| Method and path under /api/ | Purpose |
+|---|---|
+| GET/PATCH account/profile/ | Current account profile |
+| POST/DELETE account/profile/photo/ | Multipart photo upload (5 MB, JPEG/PNG/WebP) or removal |
+| POST account/password/ | current_password, new_password, confirmation |
+| GET account/favorites/ | Current user's saved rooms |
+| POST/DELETE account/favorites/{room_id}/ | Add/remove favorite |
+| GET account/reviews/ | Own reviews and eligible checked-out bookings |
+| PATCH/DELETE account/reviews/{id}/ | Own rating/comment update or deletion |
+| GET account/payments/?status=... | Own payment records and booking balances |
+| GET account/notifications/?page=1 | Own notifications, count and unread count, 25 per page |
+| POST account/notifications/{id}/read/ | Mark own notification read |
+| POST account/notifications/read-all/ | Mark all own notifications read |
+| GET hotel-date/ | Server date in Asia/Almaty |
+| GET admin/activity/ | Read-only paginated audit; requires staff and hotel.view_auditlog |
+| DELETE admin/reviews/{id}/ | Staff with view_review and delete_review |
+
+Activity filters are q, administrator (user ID), action, start, end, page. Dates are inclusive and evaluated in Asia/Almaty. Ordering is newest first.
+
+POST rooms/{id}/reviews/ now requires booking. The stay must belong to the current user, match the room and have status checked_out. A booking can have one review. Legacy reviews stay unverified. GET includes eligible bookings for the signed-in user. Public review objects include verified_stay.
+
+GET admin/dashboard/ accepts date=YYYY-MM-DD. date remains the current hotel date; selected_date is the availability date. Reserved rooms include blocking pending/confirmed stays on the selected night. Available rooms exclude their union with checked-in rooms and nonoperational rooms.
+
+Payment POST requests accept Idempotency-Key. Reuse the same key when retrying the same attempt. Guest and staff payment forms provide it. Receipts contain only the safe response, never the submitted card fields. Existing card/prepayment/cash simulations continue to apply.
+
+Notification and audit records are written in the same transaction as successful operations. Invalid actions roll back their events. A declined simulated payment (402) is a valid failed ledger event and remains stored. Current session survives a password change; other sessions are invalidated on their next authenticated request.
+
+See [the update report](../docs/IMPROVEMENTS.md) for migration preservation checks and test scenarios.

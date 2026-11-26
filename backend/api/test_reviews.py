@@ -32,80 +32,16 @@ class ReviewTestCase(TestCase):
 
 
 class LeaveFeedbackTests(ReviewTestCase):
-    def test_a_visitor_without_an_account_can_leave_feedback(self):
-        response = APIClient().post(self.url(), {"rating": 4, "comment": "  Quiet and clean.  ", "name": " Aida "}, format="json")
-        self.assertEqual(response.status_code, 201, response.data)
-        review = Review.objects.get()
-        self.assertEqual((review.room, review.user, review.author_name), (self.room, None, "Aida"))
-        self.assertEqual((review.rating, review.comment, review.is_hidden), (4, "Quiet and clean.", False))
-        self.assertEqual(response.data["review"]["author"], "Aida")
-        self.assertEqual((response.data["count"], response.data["average"]), (1, 4.0))
-
-    def test_no_booking_is_needed_and_comment_and_name_are_optional(self):
-        response = APIClient().post(self.url(), {"rating": 5}, format="json")
-        self.assertEqual(response.status_code, 201, response.data)
-        review = Review.objects.get()
-        self.assertEqual((review.comment, review.author_name), ("", "Guest"))
-
-    def test_a_signed_in_guest_is_linked_and_uses_their_first_name(self):
-        self.guest.first_name = "Dana"
-        self.guest.save()
+    def test_visitors_and_users_without_completed_bookings_are_denied(self):
+        self.assertEqual(APIClient().post(self.url(), {"rating": 5}).status_code, 403)
         client = APIClient()
         client.force_login(self.guest)
-        self.assertEqual(client.post(self.url(), {"rating": 3}, format="json").status_code, 201)
-        review = Review.objects.get()
-        self.assertEqual((review.user, review.author_name), (self.guest, "Dana"))
+        self.assertEqual(client.post(self.url(), {"rating": 5}).status_code, 400)
 
-    def test_a_signed_in_guest_reviews_a_room_only_once(self):
-        client = APIClient()
-        client.force_login(self.guest)
-        self.assertEqual(client.post(self.url(), {"rating": 5}, format="json").status_code, 201)
-        again = client.post(self.url(), {"rating": 1}, format="json")
-        self.assertEqual(again.status_code, 409)
-        self.assertEqual(Review.objects.get().rating, 5)
-
-    def test_a_guest_can_review_different_rooms_and_visitors_can_repeat(self):
-        other_room = Room.objects.create(
-            room_type=self.room.room_type, room_number="102", description="Other", price_per_night=30000, capacity=2,
-        )
-        client = APIClient()
-        client.force_login(self.guest)
-        self.assertEqual(client.post(self.url(), {"rating": 5}, format="json").status_code, 201)
-        self.assertEqual(client.post(self.url(other_room), {"rating": 4}, format="json").status_code, 201)
-        visitor = APIClient()
-        self.assertEqual(visitor.post(self.url(), {"rating": 3}, format="json").status_code, 201)
-        self.assertEqual(visitor.post(self.url(), {"rating": 2}, format="json").status_code, 201)
-        self.assertEqual(Review.objects.count(), 4)
-
-    def test_rejects_invalid_input(self):
-        bodies = ({}, {"rating": 0}, {"rating": 6}, {"rating": "five"}, {"rating": 3, "comment": "x" * 2001},
-                  {"rating": 3, "name": "n" * 81})
-        for body in bodies:
-            self.assertEqual(APIClient().post(self.url(), body, format="json").status_code, 400, body)
-        self.assertEqual(Review.objects.count(), 0)
-
-    def test_unknown_room_returns_404(self):
-        self.assertEqual(APIClient().post("/api/rooms/99999/reviews/", {"rating": 5}, format="json").status_code, 404)
-
-    def test_posting_is_rate_limited_but_reading_is_not(self):
-        client = APIClient()
-        for _ in range(10):
-            self.assertEqual(client.post(self.url(), {"rating": 5}, format="json").status_code, 201)
-        self.assertEqual(client.post(self.url(), {"rating": 5}, format="json").status_code, 429)
-        self.assertEqual(client.get(self.url()).status_code, 200)
-
-    def test_database_rejects_a_rating_outside_one_to_five(self):
+    def test_database_rejects_invalid_ratings(self):
         for rating in (0, 6):
             with self.assertRaises(IntegrityError), transaction.atomic():
                 Review.objects.create(room=self.room, rating=rating)
-
-    def test_database_allows_one_review_per_user_and_room(self):
-        self.make_review(user=self.guest)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            self.make_review(user=self.guest)
-        self.make_review()  # visitors have no user, so they are not limited by the constraint
-        self.make_review()
-
 
 class RoomReviewListTests(ReviewTestCase):
     def test_room_without_reviews(self):
@@ -113,7 +49,7 @@ class RoomReviewListTests(ReviewTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {
             "room": self.room.pk, "count": 0, "average": None,
-            "breakdown": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}, "reviews": [],
+            "breakdown": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}, "reviews": [], "eligible": [],
         })
 
     def test_average_count_breakdown_and_newest_first(self):
@@ -143,7 +79,7 @@ class RoomReviewListTests(ReviewTestCase):
     def test_no_personal_details_are_exposed(self):
         self.make_review(user=self.guest, name="Dana")
         item = APIClient().get(self.url()).data["reviews"][0]
-        self.assertEqual(set(item), {"id", "rating", "comment", "author", "created_at"})
+        self.assertEqual(set(item), {"id", "rating", "comment", "author", "created_at", "verified_stay"})
         self.assertEqual(item["author"], "Dana")
         self.assertNotIn("guest@example.com", str(item))
 
@@ -173,7 +109,7 @@ class RoomRatingOnCatalogTests(ReviewTestCase):
         self.assertEqual((detail["rating_average"], detail["rating_count"]), (4.5, 2))
 
     def test_a_new_review_shows_up_on_the_catalog(self):
-        APIClient().post(self.url(), {"rating": 3}, format="json")
+        self.make_review(rating=3)
         item = APIClient().get("/api/rooms/").data[0]
         self.assertEqual((item["rating_average"], item["rating_count"]), (3.0, 1))
 

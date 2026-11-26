@@ -45,10 +45,12 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'api.events.EventContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -140,3 +142,6 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {'payments': '20/min', 'reviews': '10/hour'},
 }
 
+
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key", "accept-language")

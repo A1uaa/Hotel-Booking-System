@@ -1,3 +1,5 @@
+import { HotelApi } from '../../core/api';
+import { TranslatePipe, translate } from '../../core/i18n';
 import { Component, computed, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Stars } from '../../shared/stars';
@@ -6,7 +8,7 @@ import { StaffSession } from './admin-session';
 import { mutation, resource } from './admin-state';
 
 @Component({
-  imports: [ReactiveFormsModule, Stars],
+  imports: [TranslatePipe, ReactiveFormsModule, Stars],
   template: `
     <div class="staff-heading"><div><p class="eyebrow">Guests</p><h1>Reviews</h1><p>Read guest feedback and hide a review from the website. A hidden review is kept here and can be shown again.</p></div></div>
     <form class="staff-panel staff-filters" [formGroup]="filter" (ngSubmit)="search()">
@@ -30,7 +32,7 @@ import { mutation, resource } from './admin-state';
           <thead><tr><th>Review</th><th>Room</th><th>Author</th><th>Rating</th><th>Comment</th><th>Status</th><th>Date</th>
             @if (canModerate()) { <th><span class="visually-hidden">Actions</span></th> }</tr></thead>
           <tbody>@for (row of rows; track row.id) {
-            <tr><th scope="row">#{{ row.id }}</th><td>Room {{ row.room_number }}</td>
+            <tr [id]="'review-' + row.id"><th scope="row">#{{ row.id }}</th><td>Room {{ row.room_number }}</td>
               <td>{{ row.author_name }}@if (row.guest) { <br /><small class="muted">{{ row.guest.email }}</small> } @else { <br /><small class="muted">Visitor</small> }</td>
               <td><app-stars [value]="row.rating" /></td>
               <td class="review-comment">{{ row.comment || '—' }}</td>
@@ -38,7 +40,8 @@ import { mutation, resource } from './admin-state';
               <td>{{ row.created_at.slice(0, 10) }}</td>
               @if (canModerate()) {
                 <td><div class="staff-actions">
-                  <button class="button button-small outline" (click)="toggle(row)" [disabled]="action.saving()">{{ row.is_hidden ? 'Show' : 'Hide' }}</button>
+                  @if (canHide()) { <button class="button button-small outline" (click)="toggle(row)" [disabled]="action.saving()">{{ row.is_hidden ? 'Show' : 'Hide' }}</button> }
+                  @if (canDelete()) { <button class="plain-button" (click)="remove(row)" [disabled]="action.saving()">{{ 'member.delete' | t }}</button> }
                 </div></td>
               }
             </tr>
@@ -51,7 +54,10 @@ import { mutation, resource } from './admin-state';
 export class AdminReviews {
   private readonly api = inject(AdminApi);
   private readonly staff = inject(StaffSession);
-  readonly canModerate = () => this.staff.current()?.capabilities.moderateReviews;
+  readonly canModerate = () => this.staff.current()?.capabilities.moderateReviews || this.staff.current()?.capabilities.deleteReviews;
+  readonly canHide = () => this.staff.current()?.capabilities.moderateReviews;
+  readonly canDelete = () => this.staff.current()?.capabilities.deleteReviews;
+  private readonly http = inject(HotelApi);
   readonly list = resource<ManagedReview[]>();
   readonly action = mutation();
   readonly filter = inject(FormBuilder).nonNullable.group({ q: '', visibility: '', rating: '' });
@@ -69,6 +75,11 @@ export class AdminReviews {
   search() { this.applied = this.filter.getRawValue(); this.load(); }
   clear() { this.filter.reset(); this.search(); }
   load() { this.list.load(this.api.reviews(this.applied)); }
+
+  remove(row: ManagedReview) {
+    if (!window.confirm(translate('member.deleteConfirm'))) return;
+    this.action.run(this.http.delete('admin/reviews/' + row.id + '/'), translate('member.saved'), () => this.load());
+  }
 
   toggle(row: ManagedReview) {
     const hide = !row.is_hidden;

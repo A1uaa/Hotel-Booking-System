@@ -56,5 +56,5 @@ export const requireSession: CanActivateFn = (_, state) => {
 };
 
 export function safeReturnUrl(value: string | null): string {
-  return value && /^\/(rooms|bookings)(?:[/?]|$)/.test(value) ? value : '/bookings';
+  return value && /^\/(rooms|bookings|account)(?:[/?]|$)/.test(value) ? value : '/bookings';
 }

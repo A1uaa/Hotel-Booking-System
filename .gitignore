@@ -7,7 +7,7 @@ __pycache__/
 /frontend/.angular/
 /frontend/dist/
 /backend/media/
-
+/backend/backups/
 .DS_Store
 *.zip
 /HOTEL_BOOKING/

@@ -3,7 +3,7 @@
   @if (loading()) { <p class="notice" role="status">{{ 'rd.loading' | t }}</p> }
   @else if (loadError()) { <p class="notice error" role="alert">{{ loadError() }}</p> }
   @else if (room(); as item) {
-    <div class="detail-heading"><p class="eyebrow">{{ 'rd.eyebrow' | t: { number: item.room_number } }}</p><h1>{{ item.room_type.name | content }}</h1>
+    <app-favorite [roomId]="item.id" /><div class="detail-heading"><p class="eyebrow">{{ 'rd.eyebrow' | t: { number: item.room_number } }}</p><h1>{{ item.room_type.name | content }}</h1>
       @if (reviews(); as summary) {
         <p class="review-summary">
           @if (summary.count) {
@@ -37,14 +37,14 @@
               </section>
               <section class="panel" aria-labelledby="feedback-title">
                 <h2 id="feedback-title" class="visually-hidden">{{ 'rd.feedback' | t }}</h2>
-                <app-feedback-form [roomId]="item.id" (saved)="reviews.set($event)" />
+                <app-feedback-form [roomId]="item.id" [eligible]="summary.eligible || []" (saved)="reviews.set($event)" />
               </section>
             </div>
             @if (summary.reviews.length) {
               <h3 class="review-list-title">{{ 'rd.say' | t }}</h3>
               @for (review of summary.reviews; track review.id) {
                 <article class="review">
-                  <p class="review-head"><app-stars [value]="review.rating" /> <strong>{{ review.author }}</strong> <small class="muted">{{ review.created_at.slice(0, 10) }}</small></p>
+                  <p class="review-head"><app-stars [value]="review.rating" /> <strong>{{ review.author }}</strong> @if (review.verified_stay) { <span class="badge">{{ 'member.verified' | t }}</span> } <small class="muted">{{ review.created_at.slice(0, 10) }}</small></p>
                   @if (review.comment) { <p>{{ review.comment }}</p> }
                 </article>
               }

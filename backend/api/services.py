@@ -107,8 +107,12 @@ def cancel_booking(bookings, pk):
     booking.save(update_fields=["status", "updated_at"])
     # A cancelled stay gives the money back (simulated) and closes any open pay-at-hotel request.
     now = timezone.now()
-    booking.payments.filter(status=Payment.Status.PAID).update(status=Payment.Status.REFUNDED, updated_at=now)
-    booking.payments.filter(status=Payment.Status.PENDING).update(status=Payment.Status.CANCELLED, updated_at=now)
+    for payment in booking.payments.filter(status=Payment.Status.PAID):
+        payment.status = Payment.Status.REFUNDED
+        payment.save(update_fields=["status", "updated_at"])
+    for payment in booking.payments.filter(status=Payment.Status.PENDING):
+        payment.status = Payment.Status.CANCELLED
+        payment.save(update_fields=["status", "updated_at"])
     return booking
 
 
@@ -197,7 +201,9 @@ def _close_pending(booking, *, only_cash=False):
     pending = booking.payments.filter(status=Payment.Status.PENDING)
     if only_cash:
         pending = pending.filter(method=Payment.Method.CASH)
-    pending.update(status=Payment.Status.CANCELLED, updated_at=timezone.now())
+    for payment in pending:
+        payment.status = Payment.Status.CANCELLED
+        payment.save(update_fields=["status", "updated_at"])
 
 
 def _confirm(booking):
@@ -325,22 +331,19 @@ def round_average(value):
 
 
 @transaction.atomic
-def create_review(room, user, *, rating, comment="", name=""):
-    """Anyone can rate a room. `user` is None for a visitor without an account.
-
-    A signed-in user can review a room once. The shown name is the one typed in, else the account's
-    first name, else "Guest"; the email is never stored on the review or exposed.
-    """
-    author = name.strip() or (user.first_name.strip() if user else "") or "Guest"
-    if user and Review.objects.filter(room=room, user=user).exists():
-        raise Conflict("You have already left feedback for this room.")
-    review = Review(room=room, user=user, author_name=author[:80], rating=rating, comment=comment.strip())
-    try:
-        with transaction.atomic():
-            review.save()
-    except IntegrityError as exc:
-        raise Conflict("You have already left feedback for this room.") from exc
-    return review
+def create_review(room, user, *, rating, booking, comment="", name=""):
+    if user is None or not user.is_authenticated:
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied("Authentication required.")
+    stay = get_object_or_404(Booking, pk=booking, user=user, room=room)
+    if stay.status != Booking.Status.CHECKED_OUT:
+        raise ValidationError({"booking": "Complete your stay before leaving a review."})
+    if Review.objects.filter(booking=stay).exists():
+        raise Conflict("This stay already has a review.")
+    return Review.objects.create(
+        booking=stay, room=room, user=user, author_name=user.get_full_name()[:80] or "Guest",
+        rating=rating, comment=comment.strip(),
+    )
 
 
 def room_reviews(room, limit=50):

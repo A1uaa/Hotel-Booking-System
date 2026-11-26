@@ -1,3 +1,4 @@
+from .idempotency import payment_idempotency
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Group
 from django.db import transaction
@@ -132,28 +133,28 @@ def room_availability(request, pk):
     })
 
 
-def review_payload(room):
+def review_payload(room, user=None):
     summary, rows = room_reviews(room)
-    return {"room": room.pk, **summary, "reviews": PublicReviewSerializer(rows, many=True).data}
+    eligible = list(Booking.objects.filter(user=user, room=room, status=Booking.Status.CHECKED_OUT, review__isnull=True).values("id", "check_in", "check_out")) if user and user.is_authenticated else []
+    return {"room": room.pk, **summary, "reviews": PublicReviewSerializer(rows, many=True).data, "eligible": eligible}
 
 
 @api_view(["GET", "POST"])
 @throttle_classes([ReviewThrottle])
 @handle_database_contention
 def room_review_list(request, pk):
-    """Public. GET: the visible reviews of a room with count, average and the per-star breakdown.
-
-    POST: anyone, signed in or not, leaves a rating (1-5) with an optional comment and name.
-    Responds with the refreshed review list plus the new `review`.
-    """
+    """List public feedback or create feedback for the owner's completed stay."""
     room = get_object_or_404(Room, pk=pk)
     if request.method == "GET":
-        return Response(review_payload(room))
+        return Response(review_payload(room, request.user))
+    if not request.user.is_authenticated:
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied("Authentication required.")
     serializer = ReviewInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = request.user if request.user.is_authenticated else None
     review = create_review(room, user, **serializer.validated_data)
-    return Response({**review_payload(room), "review": PublicReviewSerializer(review).data}, status=201)
+    return Response({**review_payload(room, request.user), "review": PublicReviewSerializer(review).data}, status=201)
 
 
 @api_view(["GET", "POST"])
@@ -197,6 +198,7 @@ def booking_payments(request, pk):
 @throttle_classes([PaymentThrottle])
 @permission_classes([IsAuthenticated])
 @handle_database_contention
+@payment_idempotency
 def booking_pay(request, pk):
     serializer = PaymentInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

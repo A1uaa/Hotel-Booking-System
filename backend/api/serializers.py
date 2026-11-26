@@ -160,6 +160,7 @@ class BookingSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
 
 
 class ReviewInputSerializer(serializers.Serializer):
+    booking = serializers.IntegerField(min_value=1, required=True)
     rating = serializers.IntegerField(min_value=1, max_value=5)
     comment = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
     name = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
@@ -169,10 +170,14 @@ class PublicReviewSerializer(serializers.ModelSerializer):
     """What the room page shows: a display name only, never an email or account details."""
 
     author = serializers.CharField(source="author_name")
+    verified_stay = serializers.SerializerMethodField()
+
+    def get_verified_stay(self, review):
+        return bool(review.booking_id and review.booking.status == "checked_out" and review.booking.user_id == review.user_id and review.booking.room_id == review.room_id)
 
     class Meta:
         model = Review
-        fields = ("id", "rating", "comment", "author", "created_at")
+        fields = ("id", "rating", "comment", "author", "created_at", "verified_stay")
 
 
 class ContactSerializer(serializers.ModelSerializer):

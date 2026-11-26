@@ -1,0 +1,67 @@
+<h1>{{ 'member.' + mode | t }}</h1>
+@if (loading()) { <p class="notice" role="status">{{ 'member.loading' | t }}</p> }
+@if (error()) { <p class="notice error" role="alert">{{ error() }}</p><button class="button outline" (click)="load()">{{ 'bk.retry' | t }}</button> }
+@if (action.error()) { <p class="notice error" role="alert">{{ action.error() }}</p> }
+@if (action.feedback()) { <p class="notice success" role="status">{{ 'member.saved' | t }}</p> }
+@if (favorites.data(); as rooms) {
+  <div class="room-grid results">@for (room of rooms; track room.id) {
+    <div><app-room-card [room]="room" /><button class="plain-button" [disabled]="action.saving()" (click)="removeFavorite(room.id)">{{ 'member.remove' | t }}</button></div>
+  } @empty { <p class="panel">{{ 'member.noFavorites' | t }}</p> }</div>
+}
+@if (reviews.data(); as history) {
+  @if (edited()) {
+    <form class="panel form-stack" (submit)="$event.preventDefault(); save()">
+      <app-star-input [(value)]="rating" />
+      <label>{{ 'ff.comment' | t }}<textarea [(ngModel)]="comment" name="comment" maxlength="2000"></textarea></label>
+      <button class="button" [disabled]="action.saving()">{{ 'member.save' | t }}</button>
+      <button class="plain-button" type="button" (click)="edited.set(null)">{{ 'member.close' | t }}</button>
+    </form>
+  }
+  @for (review of history.reviews; track review.id) {
+    <article class="panel" [id]="'review-' + review.id">
+      <h2>{{ 'common.room' | t:{number:review.room_number} }} · {{ review.rating }}/5</h2>
+      @if (review.verified_stay) { <span class="badge">{{ 'member.verified' | t }}</span> }
+      @if (review.is_hidden) { <span class="badge">{{ 'member.hidden' | t }}</span> }
+      <small>{{ date(review.created_at) }}</small><p>{{ review.comment }}</p>
+      <div class="staff-actions"><a class="text-link" [routerLink]="['/rooms',review.room]">{{ 'member.viewRoom' | t }}</a>
+      <button class="plain-button" [disabled]="action.saving()" (click)="edit(review)">{{ 'member.edit' | t }}</button>
+      <button class="plain-button" [disabled]="action.saving()" (click)="removeReview(review.id)">{{ 'member.delete' | t }}</button></div>
+    </article>
+  } @empty { <p>{{ 'member.noReviews' | t }}</p> }
+  <h2>{{ 'member.eligible' | t }}</h2>
+  @for (stay of history.eligible; track stay.id) {
+    <p class="panel" [id]="'stay-' + stay.id">#{{ stay.id }} · {{ stay.check_in }} — {{ stay.check_out }}
+      <a class="text-link" [routerLink]="['/rooms', stay.room]" fragment="reviews">{{ 'member.write' | t }}</a></p>
+  } @empty { <p>{{ 'member.reviewHint' | t }}</p> }
+}
+@if (payments.data(); as history) {
+  <label>{{ 'member.status' | t }}<select [(ngModel)]="paymentStatus" (change)="load()"><option value="">{{ 'member.all' | t }}</option>
+    @for (status of statuses; track status) { <option [value]="status">{{ label(status) }}</option> }
+  </select></label>
+  <div class="staff-table-wrap"><table class="staff-table"><thead><tr>
+    <th>ID</th><th>{{ 'member.bookings' | t }}</th><th>{{ 'member.date' | t }}</th><th>{{ 'common.total' | t }}</th><th>{{ 'member.method' | t }}</th><th>{{ 'member.status' | t }}</th>
+  </tr></thead><tbody>@for (payment of history.payments; track payment.id) {
+    <tr [id]="'payment-' + payment.id"><td>#{{ payment.id }}</td><td>#{{ payment.booking }} · {{ payment.room_number }}</td><td>{{ date(payment.created_at) }}</td>
+      <td>{{ money(payment.amount) }}</td><td>{{ label(payment.method) }}</td><td>{{ label(payment.status) }}</td></tr>
+  } @empty { <tr><td colspan="6">{{ 'member.noPayments' | t }}</td></tr> }</tbody></table></div>
+  @for (stay of history.bookings; track stay.id) {
+    @if (stay.status !== 'cancelled' && stay.balance_due && +stay.balance_due > 0) {
+      <p>#{{ stay.id }} · {{ 'bk.balance' | t }} {{ money(stay.balance_due) }} · {{ label(stay.payment_status || 'unpaid') }}
+      @if (stay.status === 'pending' || stay.status === 'confirmed') { <a [routerLink]="['/bookings', stay.id, 'payment']">{{ 'bk.payNow' | t }}</a> }</p>
+    }
+  }
+}
+@if (notices.data(); as messages) {
+  <button class="button outline" [disabled]="action.saving()" (click)="read()">{{ 'member.readAll' | t }}</button>
+  @for (notice of messages.results; track notice.id) {
+    <article class="panel" [class.unread]="!notice.is_read">
+      <p>{{ 'event.' + notice.kind | t }} #{{ notice.parameters.id }}</p><small>{{ date(notice.created_at) }}</small>
+      <a [routerLink]="notice.path.split('#')[0]" [fragment]="notice.path.split('#')[1]">{{ 'member.open' | t }}</a>
+      @if (!notice.is_read) { <button class="plain-button" [disabled]="action.saving()" (click)="read(notice.id)">{{ 'member.read' | t }}</button> }
+    </article>
+  } @empty { <p>{{ 'member.noNotifications' | t }}</p> }
+  <div class="staff-actions">
+    <button class="button outline" [disabled]="noticePage <= 1 || loading()" (click)="noticePage=noticePage-1;load()">{{ 'member.previous' | t }}</button>
+    <span>{{ noticePage }}</span><button class="button outline" [disabled]="noticePage*25 >= (messages.count || 0) || loading()" (click)="noticePage=noticePage+1;load()">{{ 'member.next' | t }}</button>
+  </div>
+}
