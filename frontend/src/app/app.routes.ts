@@ -10,6 +10,7 @@ import { Site } from './layouts/site';
 class NotFound {}
 
 const customerRoutes: Routes = [
+  { path: 'account', loadChildren: () => import('./features/member/member.routes').then(m => m.memberRoutes) },
   { path: '', title: 'Koktem Park Hotel | Almaty', loadComponent: () => import('./features/home').then(m => m.Home) },
   { path: 'rooms', title: 'Rooms & Suites | Koktem Park Hotel', loadComponent: () => import('./features/rooms').then(m => m.Rooms) },
   { path: 'rooms/:id', title: 'Room Details | Koktem Park Hotel', loadComponent: () => import('./features/room-detail').then(m => m.RoomDetail) },

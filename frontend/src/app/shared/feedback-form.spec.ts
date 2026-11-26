@@ -19,6 +19,7 @@ describe('FeedbackForm', () => {
   function create() {
     const fixture = TestBed.createComponent(FeedbackForm);
     fixture.componentRef.setInput('roomId', 3);
+    fixture.componentRef.setInput('eligible', [{id:11,check_in:'2026-01-01',check_out:'2026-01-03'}]);
     fixture.detectChanges();
     return fixture;
   }
@@ -47,7 +48,7 @@ describe('FeedbackForm', () => {
     fixture.componentInstance.send();
     http.expectOne('/api/auth/csrf/').flush({ csrf_token: 't' });
     const request = http.expectOne('/api/rooms/3/reviews/');
-    expect(request.request.body).toEqual({ rating: 4, comment: 'Nice', name: '' });
+    expect(request.request.body).toEqual({ booking: 11, rating: 4, comment: 'Nice', name: '' });
     const body = { room: 3, count: 1, average: 4, breakdown: { '1': 0, '2': 0, '3': 0, '4': 1, '5': 0 }, reviews: [] };
     request.flush(body, { status: 201, statusText: 'Created' });
     expect(saved).toHaveLength(1);

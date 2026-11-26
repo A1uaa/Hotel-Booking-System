@@ -32,7 +32,7 @@ import { mutation, resource } from './admin-state';
           <thead><tr><th>Payment</th><th>Reservation</th><th>Guest</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th>
             @if (canChange()) { <th><span class="visually-hidden">Actions</span></th> }</tr></thead>
           <tbody>@for (row of rows; track row.id) {
-            <tr><th scope="row">#{{ row.id }}</th><td>#{{ row.booking }} · Room {{ row.room_number }}</td>
+            <tr [id]="'payment-' + row.id"><th scope="row">#{{ row.id }}</th><td>#{{ row.booking }} · Room {{ row.room_number }}</td>
               <td>{{ row.guest.name || row.guest.email || 'Guest #' + row.guest.id }}</td>
               <td>{{ row.payment_method }}@if (row.note) { <br /><small>{{ row.note }}</small> }</td>
               <td>{{ money(row.amount) }}<br /><small>of {{ money(row.booking_total) }}</small></td>

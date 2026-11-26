@@ -11,7 +11,7 @@ import { Reservation } from './admin-api';
           @if (mode() !== 'none') { <th><span class="visually-hidden">Actions</span></th> }
         </tr></thead>
         <tbody>@for (row of rows(); track row.id) {
-          <tr><th scope="row">#{{ row.id }}</th><td>{{ row.guest.name || row.guest.email || 'Guest #' + row.guest.id }}</td><td>{{ row.room_number }}</td>
+          <tr [id]="'booking-' + row.id"><th scope="row">#{{ row.id }}</th><td>{{ row.guest.name || row.guest.email || 'Guest #' + row.guest.id }}</td><td>{{ row.room_number }}</td>
             <td>{{ row.check_in }}</td><td>{{ row.check_out }}</td><td>{{ money(row.total_price) }}</td>
             <td><span class="badge" [attr.data-status]="row.status">{{ label(row.status) }}</span></td>
             @if (mode() !== 'none') {

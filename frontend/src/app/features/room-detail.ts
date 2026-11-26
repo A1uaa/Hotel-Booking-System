@@ -1,3 +1,4 @@
+import { FavoriteButton } from '../shared/favorite';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -14,7 +15,7 @@ import { RatingSummary } from '../shared/rating-summary';
 import { Stars } from '../shared/stars';
 import { hotelToday, money, nights, stayDates } from '../shared/stay';
 
-@Component({ imports: [ReactiveFormsModule, RouterLink, AvailabilityCalendar, Stars, RatingSummary, FeedbackForm, TranslatePipe, ContentPipe], templateUrl: './room-detail.html' })
+@Component({ imports: [FavoriteButton, ReactiveFormsModule, RouterLink, AvailabilityCalendar, Stars, RatingSummary, FeedbackForm, TranslatePipe, ContentPipe], templateUrl: './room-detail.html' })
 export class RoomDetail {
   private readonly api = inject(HotelApi);
   private readonly auth = inject(Auth);

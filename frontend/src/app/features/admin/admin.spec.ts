@@ -1,9 +1,10 @@
+import { Member } from '../../core/member';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 import { routes } from '../../app.routes';
 import { API_BASE } from '../../core/api';
 import { AdminApi, AdminSession, Capabilities, Dashboard } from './admin-api';
@@ -24,6 +25,7 @@ describe('Admin routing', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
+        {provide:Member,useValue:{changes:EMPTY,profile:()=>null,loadProfile:()=>of(null),notifications:()=>of({unread:0,results:[]})}},
         { provide: StaffSession, useValue: {
           verify: () => throwError(() => new HttpErrorResponse({ status: 403 })),
         } },
@@ -42,6 +44,7 @@ describe('Admin routing', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
+        {provide:Member,useValue:{changes:EMPTY,profile:()=>null,loadProfile:()=>of(null),notifications:()=>of({unread:0,results:[]})}},
         { provide: StaffSession, useValue: { verify: () => of(session), current: () => session } },
         { provide: AdminApi, useValue: { dashboard: () => of(dashboard) } },
       ],

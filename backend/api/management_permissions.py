@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission
 
-HOTEL_MODELS = ("room", "roomtype", "roomimage", "booking", "payment", "review")
+HOTEL_MODELS = ("room", "roomtype", "roomimage", "booking", "payment", "review", "auditlog")
 
 
 def staff_access(user):
@@ -26,6 +26,7 @@ def management_access(**methods):
 
 def capabilities(user):
     return {
+        "activity": allowed(user, "view_auditlog"),
         "dashboard": allowed(user, "view_room", "view_booking", "view_payment"),
         "rooms": allowed(user, "view_room", "view_roomtype"),
         "addRoom": allowed(user, "add_room", "view_room", "view_roomtype"),
@@ -42,5 +43,6 @@ def capabilities(user):
         "recordPayment": allowed(user, "view_booking", "view_payment", "add_payment"),
         "changePayment": allowed(user, "view_booking", "view_payment", "change_payment"),
         "reviews": allowed(user, "view_review"),
+        "deleteReviews": allowed(user, "view_review", "delete_review"),
         "moderateReviews": allowed(user, "view_review", "change_review"),
     }

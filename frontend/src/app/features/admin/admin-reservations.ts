@@ -1,7 +1,10 @@
+import { HotelApi } from '../../core/api';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Booking, PaymentMethod } from '../../core/api';
-import { hotelToday, money, statusLabel } from '../../shared/stay';
+import { money, statusLabel } from '../../shared/stay';
 import { AdminApi, ManagedPayment, Reservation } from './admin-api';
 import { StaffSession } from './admin-session';
 import { mutation, resource } from './admin-state';
@@ -24,11 +27,14 @@ export class AdminReservations {
   readonly action = mutation();
   readonly filter = inject(FormBuilder).nonNullable.group({ q: '', status: '', date: '' });
   readonly statuses: Booking['status'][] = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
+  private hotelDate = '';
+  private readonly hotel = inject(HotelApi);
+  private refreshDate() { this.hotel.get<{date:string}>('hotel-date/').subscribe({next:value=>this.hotelDate=value.date,error:()=>{}}); }
   readonly label = statusLabel;
   readonly money = money;
   private applied = this.filter.getRawValue();
 
-  constructor() { this.load(); }
+  constructor() { this.load(); this.refreshDate(); interval(60000).pipe(takeUntilDestroyed()).subscribe(()=>this.refreshDate()); }
   search() { this.applied = this.filter.getRawValue(); this.load(); }
   clear() { this.filter.reset(); this.search(); }
   load() { this.list.load(this.api.reservations(this.applied)); }
@@ -39,7 +45,8 @@ export class AdminReservations {
     this.action.error.set('');
     this.paymentAction.feedback.set('');
     this.paymentAction.error.set('');
-    this.paymentForm.reset({ method: 'cash', amount: '', note: '' });
+    this.receiptKey = crypto.randomUUID();
+        this.paymentForm.reset({ method: 'cash', amount: '', note: '' });
     this.detail.load(this.api.reservation(row.id));
     if (this.canSeePayments()) this.payments.load(this.api.reservationPayments(row.id));
   }
@@ -49,11 +56,14 @@ export class AdminReservations {
     this.payments.load(this.api.reservationPayments(id));
     this.load();
   }
+  private receiptKey = crypto.randomUUID();
+
   record(row: Reservation) {
     const { method, amount, note } = this.paymentForm.getRawValue();
     if (!(Number(amount) > 0)) { this.paymentAction.error.set('Enter the amount received.'); return; }
-    this.paymentAction.run(this.api.recordPayment(row.id, { method, amount: String(amount), note: note.trim() }), 'Payment recorded.', () => {
-      this.paymentForm.reset({ method: 'cash', amount: '', note: '' });
+    this.paymentAction.run(this.api.recordPayment(row.id, { method, amount: String(amount), note: note.trim() }, this.receiptKey), 'Payment recorded.', () => {
+      this.receiptKey = crypto.randomUUID();
+        this.paymentForm.reset({ method: 'cash', amount: '', note: '' });
       this.refreshDetail(row.id);
     });
   }
@@ -64,8 +74,8 @@ export class AdminReservations {
   }
   actions(row: Reservation): Booking['status'][] {
     if (row.status === 'pending') return ['confirmed', 'cancelled'];
-    if (row.status === 'confirmed') return row.check_in === hotelToday() ? ['checked_in', 'cancelled'] : ['cancelled'];
-    if (row.status === 'checked_in' && row.check_out <= hotelToday()) return ['checked_out'];
+    if (row.status === 'confirmed') return row.check_in === this.hotelDate ? ['checked_in', 'cancelled'] : ['cancelled'];
+    if (row.status === 'checked_in' && row.check_out <= this.hotelDate) return ['checked_out'];
     return [];
   }
   change(row: Reservation, status: Booking['status']) {

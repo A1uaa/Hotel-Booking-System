@@ -1,8 +1,11 @@
 from django.urls import include, path
 
-from . import views
+from . import views, account_views
 
 urlpatterns = [
+    path("account/", include("api.account_urls")),
+    path("hotel-date/", account_views.hotel_date),
+    path("admin/activity/", account_views.audit_log),
     path("admin/", include("api.management_urls")),
     path("health/", views.health, name="health"),
     path("auth/csrf/", views.csrf_token, name="api-csrf"),

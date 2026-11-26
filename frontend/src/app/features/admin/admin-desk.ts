@@ -1,3 +1,5 @@
+import { interval } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, inject } from '@angular/core';
 import { AdminApi, FrontDesk, Reservation } from './admin-api';
 import { StaffSession } from './admin-session';
@@ -28,7 +30,7 @@ export class AdminDesk {
   readonly canChange = () => this.staff.current()?.capabilities.changeBooking;
   readonly result = resource<FrontDesk>();
   readonly action = mutation();
-  constructor() { this.load(); }
+  constructor() { this.load(); interval(60000).pipe(takeUntilDestroyed()).subscribe(()=>this.load()); }
   load() { this.result.load(this.api.frontDesk()); }
   process(row: Reservation, operation: 'check-in' | 'check-out') {
     if (!window.confirm('Process ' + operation + ' for reservation #' + row.id + '?')) return;

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, output } from '@angular/core';
 import { Lang, language, LANGUAGES, setLanguage, TranslatePipe } from '../core/i18n';
 
 /** Three flag buttons: Kazakh, Russian and English. The choice is remembered in the browser. */
@@ -35,9 +35,10 @@ import { Lang, language, LANGUAGES, setLanguage, TranslatePipe } from '../core/i
   `,
 })
 export class LanguageSwitcher {
+  readonly changed = output<Lang>();
   readonly languages = LANGUAGES;
   readonly current = language;
   // Each language is named in itself so a visitor can always find theirs.
   readonly names: Record<Lang, string> = { kk: 'Қазақша', ru: 'Русский', en: 'English' };
-  choose(lang: Lang) { setLanguage(lang); }
+  choose(lang: Lang) { setLanguage(lang); this.changed.emit(lang); }
 }

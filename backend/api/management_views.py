@@ -1,3 +1,4 @@
+from .idempotency import payment_idempotency
 from io import BytesIO
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from rest_framework.response import Response
 
 from hotel.models import Booking, Payment, Review, Room, RoomImage, RoomType
 from .authentication import authenticate_email
+from .account_serializers import profile_data, OwnReviewSerializer
 from .management_permissions import capabilities, management_access, staff_access
 from .management_serializers import (
     ChangePaymentStatus, ChangeReviewVisibility, ChangeStatus, GuestSerializer, ManagedBookingSerializer,
@@ -24,7 +26,7 @@ from .management_serializers import (
 )
 from .management_stats import dashboard, reports
 from .serializers import RoomImageSerializer, UserSerializer
-from .services import Conflict, change_payment_status, handle_database_contention, record_payment, with_payment_totals
+from .services import cancel_booking, Conflict, change_payment_status, handle_database_contention, record_payment, with_payment_totals
 
 
 
@@ -59,7 +61,9 @@ def admin_me(request):
 @api_view(["GET"])
 @permission_classes([management_access(GET=STATS_READ)])
 def overview(request):
-    return Response(dashboard(timezone.localdate()))
+    selected = request.query_params.get("date")
+    selected = serializers.DateField().run_validation(selected) if selected else None
+    return Response(dashboard(timezone.localdate(), selected))
 
 
 def managed_rooms():
@@ -242,6 +246,8 @@ def transition(pk, target):
             raise Conflict("A guest is still checked in to this room.")
     if target == Booking.Status.CHECKED_OUT and today < booking.check_out:
         raise Conflict("Check-out is available on or after the scheduled departure date.")
+    if target == Booking.Status.CANCELLED:
+        return cancel_booking(Booking.objects.all(), pk)
     booking.status = target
     booking.save(update_fields=["status", "updated_at"])
     return booking
@@ -309,6 +315,9 @@ def guest(request, pk):
     user = get_object_or_404(guests_only(), pk=pk)
     return Response({
         "guest": GuestSerializer(user).data,
+        "profile": profile_data(user, request),
+        "payments": payment_data(managed_payments().filter(booking__user=user), many=True) if request.user.has_perm("hotel.view_payment") else [],
+        "reviews": OwnReviewSerializer(user.reviews.select_related("room", "booking"), many=True).data if request.user.has_perm("hotel.view_review") else [],
         "bookings": booking_data(managed_bookings().filter(user=user), many=True),
     })
 
@@ -376,6 +385,7 @@ def payment_status(request, pk):
 @api_view(["GET", "POST"])
 @permission_classes([management_access(GET=PAYMENT_READ, POST=(*PAYMENT_READ, "add_payment"))])
 @handle_database_contention
+@payment_idempotency
 def reservation_payments(request, pk):
     if request.method == "GET":
         get_object_or_404(Booking, pk=pk)
@@ -413,6 +423,7 @@ def reviews(request):
 @api_view(["POST"])
 @permission_classes([management_access(POST=(*REVIEW_READ, "change_review"))])
 @handle_database_contention
+@transaction.atomic
 def review_visibility(request, pk):
     serializer = ChangeReviewVisibility(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -420,3 +431,12 @@ def review_visibility(request, pk):
     review.is_hidden = serializer.validated_data["hidden"]
     review.save(update_fields=["is_hidden", "updated_at"])
     return Response(ManagedReviewSerializer(review).data)
+
+
+@api_view(["DELETE"])
+@permission_classes([management_access(DELETE=("view_review", "delete_review"))])
+@handle_database_contention
+def review_delete(request, pk):
+    review = get_object_or_404(Review, pk=pk)
+    review.delete()
+    return Response(status=204)

@@ -13,10 +13,10 @@
       <a routerLink="/contact" routerLinkActive="active" (click)="menu.set(false)">{{ 'nav.contact' | t }}</a>
       <div class="account">
         @if (auth.user(); as user) {
-          <details class="account-menu">
-            <summary>{{ 'nav.account' | t }}</summary>
+          <app-notifications /><details class="account-menu">
+            <summary><app-avatar [photo]="member.profile()?.photo" /> {{ 'nav.account' | t }}</summary>
             <div class="account-panel">
-              <span>{{ user.email }}</span>
+              <span>{{ member.profile()?.first_name || user.email }}</span><a routerLink="/account/profile" (click)="menu.set(false)">{{ 'member.profile' | t }}</a>
               <button type="button" (click)="logout()" [disabled]="leaving()">{{ (leaving() ? 'nav.signingOut' : 'nav.logout') | t }}</button>
             </div>
           </details>
@@ -25,7 +25,7 @@
           <a class="button button-small" routerLink="/register" (click)="menu.set(false)">{{ 'nav.register' | t }}</a>
         }
       </div>
-      <app-language-switcher />
+      <app-language-switcher (changed)="saveLanguage($event)" />
     </nav>
   </div>
   @if (error()) { <p class="notice error shell" role="alert">{{ error() }}</p> }

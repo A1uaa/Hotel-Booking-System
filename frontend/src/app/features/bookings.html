@@ -1,5 +1,6 @@
 <section class="page-intro"><div class="shell"><p class="eyebrow">{{ 'bk.eyebrow' | t }}</p><h1>{{ 'bk.title' | t }}</h1><p>{{ 'bk.lead' | t }}</p></div></section>
 <section class="shell section booking-list">
+  <nav class="staff-actions">@for (group of categories; track group) { <button class="button outline" [attr.aria-pressed]="category() === group" (click)="category.set(group)">{{ 'member.' + group | t }}</button> }</nav>
   @if (feedback()) { <p class="notice success" role="status">{{ feedback() }}</p> }
   @if (error()) { <p class="notice error" role="alert">{{ error() }}</p> }
   @if (loading()) { <p class="notice" role="status">{{ 'bk.loading' | t }}</p> }
@@ -7,8 +8,8 @@
   @else if (!rows().length) {
     <div class="panel"><h2>{{ 'bk.noneTitle' | t }}</h2><p>{{ 'bk.noneText' | t }}</p><a class="button" routerLink="/rooms">{{ 'bk.explore' | t }} ↗</a></div>
   } @else {
-    @for (booking of rows(); track booking.id) {
-      <article class="panel booking-row">
+    @for (booking of filtered(); track booking.id) {
+      <article class="panel booking-row" [id]="'booking-' + booking.id">
         @if (rooms()[booking.room]; as room) {
           <img class="booking-photo" [src]="photos(room)[0]" (error)="fallback($event)" [alt]="room.room_type.name | content" />
         }
@@ -21,6 +22,7 @@
             @if (booking.status !== 'cancelled' && booking.balance_due && booking.balance_due !== '0.00') { <dt>{{ 'bk.balance' | t }}</dt><dd>{{ money(booking.balance_due) }}</dd> }</dl>
         </div>
         <div class="booking-actions">
+          @if (booking.status === 'checked_out') { <a class="text-link" routerLink="/account/reviews">{{ 'member.writeEdit' | t }}</a> }
           <span class="badge" [class.cancelled]="booking.status === 'cancelled'">{{ label(booking.status) }}</span>
           @if (booking.payment_status && booking.payment_status !== 'unpaid') { <span class="badge payment-badge" [attr.data-payment]="booking.payment_status">{{ label(booking.payment_status) }}</span> }
           @if (booking.status === 'pending') { <a class="button" [routerLink]="['/bookings', booking.id, 'payment']">{{ 'bk.payNow' | t }}</a> }

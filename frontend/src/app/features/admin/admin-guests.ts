@@ -1,3 +1,6 @@
+import { Profile, OwnReview } from '../../core/member';
+import { Payment } from '../../core/api';
+import { TranslatePipe } from '../../core/i18n';
 import { Component, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { AdminApi, Guest, Reservation } from './admin-api';
@@ -5,7 +8,7 @@ import { resource } from './admin-state';
 import { ReservationTable } from './reservation-table';
 
 @Component({
-  imports: [ReactiveFormsModule, ReservationTable],
+  imports: [TranslatePipe, ReactiveFormsModule, ReservationTable],
   template: `
     <div class="staff-heading"><div><p class="eyebrow">Guest records</p><h1>Guests</h1><p>Find a guest and review their reservation history.</p></div></div>
     <form class="staff-panel staff-filters" (ngSubmit)="search()">
@@ -18,6 +21,14 @@ import { ReservationTable } from './reservation-table';
         <div class="staff-panel staff-panel-heading"><div><h2>{{ record.guest.name || record.guest.email || 'Guest #' + record.guest.id }}</h2><p>{{ record.guest.email || 'Email unlisted' }}</p></div>
           <button class="plain-button" (click)="detail.clear()">Close</button>
         </div>
+        <section class="staff-panel">
+          @if (record.profile.photo) { <img class="profile-avatar large" [src]="record.profile.photo" alt="" /> }
+          <p>{{ record.profile.phone }} · {{ record.guest.date_joined.slice(0,10) }}</p>
+          <h3>{{ 'member.payments' | t }}</h3>
+          @for (payment of record.payments; track payment.id) { <p>#{{ payment.id }} · {{ payment.amount }} ₸ · {{ payment.status }}</p> }
+          <h3>{{ 'member.reviews' | t }}</h3>
+          @for (review of record.reviews; track review.id) { <p>{{ review.rating }}/5 · {{ review.comment }}</p> }
+        </section>
         <app-reservation-table [rows]="record.bookings" caption="Booking history" />
       </section>
     }
@@ -38,7 +49,7 @@ export class AdminGuests {
   private readonly api = inject(AdminApi);
   readonly query = new FormControl('', { nonNullable: true });
   readonly list = resource<Guest[]>();
-  readonly detail = resource<{ guest: Guest; bookings: Reservation[] }>();
+  readonly detail = resource<{ guest: Guest; bookings: Reservation[];profile:Profile;payments:Payment[];reviews:OwnReview[] }>();
   constructor() { this.search(); }
   search() { this.list.load(this.api.guests(this.query.value)); }
   view(id: number) { this.detail.clear(); this.detail.load(this.api.guest(id)); }

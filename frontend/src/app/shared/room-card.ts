@@ -1,3 +1,4 @@
+import { FavoriteButton } from './favorite';
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Room, RoomFilters } from '../core/api';
@@ -8,9 +9,9 @@ import { money } from './stay';
 
 @Component({
   selector: 'app-room-card',
-  imports: [RouterLink, Stars, TranslatePipe, ContentPipe],
+  imports: [FavoriteButton, RouterLink, Stars, TranslatePipe, ContentPipe],
   template: `
-    <article class="room-card">
+    <article class="room-card"><app-favorite [roomId]="room().id" />
       <a class="card-image" [routerLink]="['/rooms', room().id]" [queryParams]="stay()" [attr.aria-label]="'card.viewAria' | t: { name: (room().room_type.name | content), number: room().room_number }">
         <img [src]="photo()" (error)="fallback($event)" loading="lazy" [alt]="room().room_type.name | content" />
       </a>

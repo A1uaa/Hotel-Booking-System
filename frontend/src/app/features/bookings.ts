@@ -12,6 +12,15 @@ export class Bookings {
   private readonly api = inject(HotelApi);
   private readonly destroy = inject(DestroyRef);
   readonly rows = signal<Booking[]>([]);
+  readonly category = signal('all');
+  readonly categories = ['all','upcoming','current','completed','cancelled'];
+  filtered() {
+    return this.rows().filter(row => this.category() === 'all' ||
+      (this.category() === 'upcoming' && ['pending','confirmed'].includes(row.status)) ||
+      (this.category() === 'current' && row.status === 'checked_in') ||
+      (this.category() === 'completed' && row.status === 'checked_out') ||
+      (this.category() === 'cancelled' && row.status === 'cancelled'));
+  }
   readonly rooms = signal<Record<number, Room>>({});
   readonly loading = signal(true);
   readonly cancelling = signal<number | null>(null);

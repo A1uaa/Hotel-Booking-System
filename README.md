@@ -92,3 +92,11 @@ To create the first administrator, run from `backend/`:
 Supply a unique, nonblank email and choose a password at the prompt. The Angular sign-in uses the email. For a regular manager, create a Django user, enable **Staff status**, assign the **Admin** group, and grant **Can view user** for guest management. The repeatable `seed_hotel` command grants those permissions to the Admin group when provisioning a new environment. Assign only the model permissions needed for restricted staff accounts.
 
 See the [staff API reference](backend/API.md#hotel-management-api) for routes, permissions, status rules, and report definitions.
+
+## Обновление личных кабинетов и событий
+
+Добавлены /account/profile, favorites, bookings, reviews, payments, security, preferences и notifications. Администратор использует общие формы профиля в /admin/profile, /admin/security и /admin/preferences. Read-only журнал доступен в /admin/activity с permission hotel.view_auditlog.
+
+Детальный отчёт, список изменённых файлов по ролям команды, API и сценарии ручной проверки находятся в [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md).
+
+Перед миграциями обновления создана локальная SQLite-копия в backend/backups/. Этот каталог исключён из Git. Старые отзывы сохранены без Verified Stay, если подтверждённая связь с завершённым бронированием отсутствует.

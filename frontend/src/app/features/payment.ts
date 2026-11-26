@@ -115,6 +115,7 @@ export class PaymentPage {
   });
 
   constructor() {
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => { this.attemptKey = crypto.randomUUID(); });
     inject(ActivatedRoute).paramMap.pipe(
       switchMap(params => {
         this.loading.set(true);
@@ -152,7 +153,7 @@ export class PaymentPage {
     return list;
   }
 
-  choose(method: PaymentMethod) { this.method.set(method); this.error.set(''); }
+  choose(method: PaymentMethod) { this.attemptKey = crypto.randomUUID(); this.method.set(method); this.error.set(''); }
 
   submitLabel(item: Booking) {
     const option = this.options(item).find(entry => entry.value === this.method());
@@ -177,6 +178,8 @@ export class PaymentPage {
     this.form.controls.expiry.setValue(digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits);
   }
 
+  private attemptKey = crypto.randomUUID();
+
   submit(booking: Booking) {
     if (this.busy()) return;
     this.error.set('');
@@ -189,7 +192,7 @@ export class PaymentPage {
       body = { method, ...value, card_holder: value.card_holder.trim() };
     }
     this.busy.set(true);
-    this.api.pay(booking.id, body)
+    this.api.pay(booking.id, body, this.attemptKey)
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: () => {
           this.form.reset();

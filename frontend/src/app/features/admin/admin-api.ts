@@ -15,14 +15,14 @@ export interface Guest { id: number; name: string; email: string; date_joined: s
 export interface Reservation extends Booking {
   guest: Guest; room_number: string; room_type: string; payment_status?: PaymentState;
 }
-export type Capabilities = Record<
+export type Capabilities = {activity?:boolean;deleteReviews?:boolean} & Record<
   'dashboard' | 'rooms' | 'addRoom' | 'changeRoom' | 'deleteRoom' | 'addPhoto' |
   'changePhoto' | 'deletePhoto' | 'reservations' | 'changeBooking' | 'guests' | 'reports' |
   'payments' | 'recordPayment' | 'changePayment' | 'reviews' | 'moderateReviews', boolean
 >;
 export interface AdminSession { account: Account; capabilities: Capabilities; }
 export interface Dashboard {
-  date: string; total_rooms: number; available_rooms: number; occupied_rooms: number;
+  date: string; selected_date?: string; reserved_rooms?: number; out_of_service_rooms?: number; total_rooms: number; available_rooms: number; occupied_rooms: number;
   arrivals: number; departures: number; active_reservations: number; revenue: string;
   pending_payments?: number; pending_amount?: string;
 }
@@ -51,7 +51,7 @@ export class AdminApi {
   private readonly api = inject(HotelApi);
   login(data: Credentials) { return this.api.post<AdminSession>('admin/login/', data); }
   me() { return this.api.get<AdminSession>('admin/me/'); }
-  dashboard() { return this.api.get<Dashboard>('admin/dashboard/'); }
+  dashboard(date = '') { return this.api.get<Dashboard>('admin/dashboard/', date ? {date} : {}); }
   rooms() { return this.api.get<ManagedRoom[]>('admin/rooms/'); }
   roomTypes() { return this.api.get<RoomType[]>('admin/room-types/'); }
   saveRoom(data: RoomInput, id?: number) {
@@ -78,7 +78,7 @@ export class AdminApi {
     return this.api.post<Reservation>('admin/reservations/' + id + '/status/', { status });
   }
   guests(q: string) { return this.api.get<Guest[]>('admin/guests/', { q }); }
-  guest(id: number) { return this.api.get<{guest: Guest; bookings: Reservation[]}>('admin/guests/' + id + '/'); }
+  guest(id: number) { return this.api.get<{guest: Guest; bookings: Reservation[];profile: import("../../core/member").Profile; payments: import("../../core/api").Payment[]; reviews: import("../../core/member").OwnReview[]}>('admin/guests/' + id + '/'); }
   frontDesk() { return this.api.get<FrontDesk>('admin/front-desk/'); }
   deskAction(id: number, action: 'check-in' | 'check-out') {
     return this.api.post<Reservation>('admin/front-desk/' + id + '/' + action + '/', {});
@@ -88,8 +88,8 @@ export class AdminApi {
     return this.api.post<ManagedPayment>('admin/payments/' + id + '/status/', { status, note });
   }
   reservationPayments(id: number) { return this.api.get<ManagedPayment[]>('admin/reservations/' + id + '/payments/'); }
-  recordPayment(id: number, data: RecordPaymentInput) {
-    return this.api.post<ManagedPayment>('admin/reservations/' + id + '/payments/', data);
+  recordPayment(id: number, data: RecordPaymentInput, key?: string) {
+    return this.api.post<ManagedPayment>('admin/reservations/' + id + '/payments/', data, key ? {'Idempotency-Key':key} : {});
   }
   reviews(filters: ReviewFilters) { return this.api.get<ManagedReview[]>('admin/reviews/', { ...filters }); }
   setReviewHidden(id: number, hidden: boolean) {

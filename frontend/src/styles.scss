@@ -308,3 +308,29 @@ textarea { resize: vertical; }
 .language-switcher button.active { opacity: 1; border-color: var(--gold); }
 .language-switcher button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .language-switcher svg { display: block; width: 1.9rem; height: 1.3rem; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
+
+.member-layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:1.5rem; align-items:start; }
+.member-nav { display:grid; gap:.6rem; }
+.member-nav a { padding:.45rem; text-decoration:none; border-radius:3px; }
+.member-nav a.active { background:var(--forest); color:var(--paper); }
+.member-content { min-width:0; display:grid; gap:1rem; }
+.member-content h1 { font-size:clamp(2rem,4vw,3rem); }
+.member-content .panel { margin-bottom:1rem; }
+.member-content .shell { width:100%; }
+.profile-avatar { display:inline-grid; width:30px; height:30px; border-radius:50%; object-fit:cover; background:var(--cream); place-items:center; vertical-align:middle; }
+.profile-avatar.large { width:100px; height:100px; font-size:3rem; }
+.avatar-editor { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin:1rem 0; }
+.favorite-button { color:var(--forest); background:var(--paper); border:1px solid var(--line); border-radius:50%; width:40px; height:40px; font-size:1.6rem; line-height:1; }
+app-favorite { display:block; padding:.4rem; }
+.notification-menu { position:relative; }
+.notification-menu summary { cursor:pointer; white-space:nowrap; }
+.notification-panel { position:absolute; top:100%; right:0; width:min(340px,85vw); max-height:70vh; overflow:auto; z-index:12; background:var(--paper); border:1px solid var(--line); box-shadow:0 6px 20px #1233; padding:1rem; color:var(--ink); }
+.notification-panel a { display:block; white-space:normal; padding:.7rem .3rem; border-bottom:1px solid var(--line); text-decoration:none; }
+.notification-panel small { display:block; font-weight:400; }
+.unread { background:#e9efdf; border-left:3px solid var(--gold); }
+@media(max-width:700px) { .member-layout {grid-template-columns:1fr;} .member-nav {display:flex; flex-wrap:wrap;} }
+
+.profile-avatar img { width:100%; height:100%; border-radius:inherit; object-fit:cover; }
+.profile-avatar svg { width:70%; height:70%; }
+
+.panel:target, .staff-table tr:target { outline:2px solid var(--gold); outline-offset:2px; scroll-margin-top:1rem; }

@@ -36,14 +36,21 @@ def payment_breakdown(start=None, end=None):
     }
 
 
-def dashboard(today):
+def dashboard(today, selected=None):
+    selected = selected or today
     bookings = Booking.objects.all()
     occupied = bookings.filter(status=Booking.Status.CHECKED_IN)
     occupied_ids = occupied.values("room_id")
+    blocked = Booking.overlapping(selected, selected + timedelta(days=1)).exclude(status=Booking.Status.CHECKED_OUT)
+    reserved = blocked.filter(status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED]).exclude(room_id__in=occupied_ids)
+    blocked_ids = blocked.values("room_id")
     return {
         "date": today,
+        "selected_date": selected,
+        "reserved_rooms": reserved.values("room_id").distinct().count(),
+        "out_of_service_rooms": Room.objects.exclude(status=Room.Status.AVAILABLE).count(),
         "total_rooms": Room.objects.count(),
-        "available_rooms": Room.objects.filter(status=Room.Status.AVAILABLE).exclude(pk__in=occupied_ids).count(),
+        "available_rooms": Room.objects.filter(status=Room.Status.AVAILABLE).exclude(pk__in=occupied_ids).exclude(pk__in=blocked_ids).count(),
         "occupied_rooms": occupied.values("room_id").distinct().count(),
         "arrivals": bookings.filter(check_in=today, status__in=[Booking.Status.CONFIRMED, Booking.Status.CHECKED_IN, Booking.Status.CHECKED_OUT]).count(),
         "departures": bookings.filter(check_out=today, status__in=OCCUPANCY_STATUSES).count(),
